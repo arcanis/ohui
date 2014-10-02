@@ -1,13 +1,14 @@
-import   extend        from 'extend';
+import   extend             from 'extend';
 
-import { ClipBox }     from './boxes/ClipBox';
-import { ContentBox }  from './boxes/ContentBox';
-import { ElementBox }  from './boxes/ElementBox';
-import { ScrollBox }   from './boxes/ScrollBox';
-import { WorldBox }    from './boxes/WorldBox';
-import { Event }       from './utilities/Event';
-import { KeySequence } from './utilities/KeySequence';
-import { Rect }        from './utilities/Rect';
+import { ClipBox }          from './boxes/ClipBox';
+import { ContentBox }       from './boxes/ContentBox';
+import { ElementBox }       from './boxes/ElementBox';
+import { ScrollBox }        from './boxes/ScrollBox';
+import { WorldBox }         from './boxes/WorldBox';
+import { Event }            from './utilities/Event';
+import { KeySequence }      from './utilities/KeySequence';
+import { Rect }             from './utilities/Rect';
+import { percentageRegexF } from './constants';
 
 var elementUniqueId = 0;
 
@@ -16,32 +17,15 @@ var rectInvalidationList = [ ];
 
 export class Element {
 
+    /**
+     */
+
     constructor( style = { } ) {
-
-        this._events = { };
-
-        this._events[ 'data' ] = [ ];
-        this._events[ 'keypress' ] = [ ];
-        this._events[ 'click' ] = [ ];
-        this._events[ 'focus' ] = [ ];
-        this._events[ 'blur' ] = [ ];
-
-        this._elementBox = new ElementBox( this );
-        this._contentBox = new ContentBox( this._elementBox );
-
-        this._scrollElementBox = new ScrollBox( this._elementBox );
-        this._scrollContentBox = new ScrollBox( this._contentBox );
-
-        this._worldElementBox = new WorldBox( this._scrollElementBox );
-        this._worldContentBox = new WorldBox( this._scrollContentBox );
-
-        this._clipElementBox = new ClipBox( this._worldElementBox );
-        this._clipContentBox = new ClipBox( this._worldContentBox );
 
         this.id = ++ elementUniqueId;
 
-        this.style = style;
-        this.activeStyle = { };
+        this.style = extend( true, { position : 'static', width : 'auto', height : 'auto' }, style );
+        this.activeStyle = { flags : { } };
 
         this.screenNode = null;
         this.parentNode = null;
@@ -52,9 +36,98 @@ export class Element {
         this.childNodes = [ ];
 
         this.scrollTop = 0;
+        this.scrollLeft = 0;
+
+        this.scrollWidth = 0;
         this.scrollHeight = 0;
 
-        this._computeActiveStyles( );
+        this.elementBox = new ElementBox( this );
+        this.contentBox = new ContentBox( this.elementBox );
+
+        this.scrollElementBox = new ScrollBox( this.elementBox );
+        this.scrollContentBox = new ScrollBox( this.contentBox );
+
+        this.worldElementBox = new WorldBox( this.scrollElementBox );
+        this.worldContentBox = new WorldBox( this.scrollContentBox );
+
+        this.clipElementBox = new ClipBox( this.worldElementBox );
+        this.clipContentBox = new ClipBox( this.worldContentBox );
+
+        this._events = { };
+
+        this.declareEvent( 'data' );
+        this.declareEvent( 'scroll' );
+        this.declareEvent( 'click' );
+        this.declareEvent( 'focus' );
+        this.declareEvent( 'blur' );
+
+        this.refreshActiveStyles( );
+
+        Object.defineProperty( this, 'scrollWidth', {
+
+            get : ( ) => this.childNodes.reduce( ( max, element ) => {
+
+                if ( ! element.activeStyle.flags.staticPositioning )
+                    return max;
+
+                var childWidth = element.elementBox.getWidth( );
+                return Math.max( max, childWidth );
+
+            }, 0 )
+
+        } );
+
+        Object.defineProperty( this, 'scrollHeight', {
+
+            get : ( ) => this.childNodes.reduce( ( sum, child ) => {
+
+                if ( ! child.activeStyle.flags.staticPositioning )
+                    return sum;
+
+                var childHeight = child.contentBox.getHeight( );
+                return sum + childHeight;
+
+            }, 0 )
+
+        } );
+
+    }
+
+    /**
+     */
+
+    setStyle( name, value ) {
+
+        var namespaces = name.split( /\./g );
+        var property = namespaces.shift( );
+
+        var what = this.style;
+
+        while ( namespaces.length > 0 ) {
+
+            var namespace = namespaces.shift( );
+
+            if ( typeof what[ namespace ] !== 'object' || what[ namespace ] === null )
+                what[ namespace ] = { };
+
+            what = what[ namespace ];
+
+        }
+
+        what[ property ] = value;
+
+        this.refreshActiveStyles( );
+
+    }
+
+    /**
+     */
+
+    setStyles( style ) {
+
+        extend( true, this.style, style );
+
+        this.refreshActiveStyles( );
 
     }
 
@@ -69,27 +142,30 @@ export class Element {
         if ( element.parentNode )
             element.parentNode.removeChild( element );
 
-        element.screenNode = this.screenNode;
-        element.parentNode = this;
+        return this.applyElementBoxInvalidatingActions( true, true, ( ) => {
 
-        if ( this.childNodes.length !== 0 ) {
-            element.previousSibling = this.childNodes[ this.childNodes.length - 1 ];
-            this.childNodes[ this.childNodes.length - 1 ].nextSibling = element;
-        }
+            element.screenNode = this.screenNode;
+            element.parentNode = this;
 
-        this.childNodes.push( element );
+            element._cascadeScreenNode( );
 
-        if ( ! this.firstChild )
-            this.firstChild = element;
+            if ( this.childNodes.length !== 0 ) {
+                element.previousSibling = this.childNodes[ this.childNodes.length - 1 ];
+                this.childNodes[ this.childNodes.length - 1 ].nextSibling = element;
+            }
 
-        this.lastChild = element;
+            this.childNodes.push( element );
 
-        element.invalidateRects( );
+            if ( ! this.firstChild )
+                this.firstChild = element;
 
-        if ( this.screenNode )
-            this.screenNode.invalidateNodeList( );
+            this.lastChild = element;
 
-        return this;
+            if ( this.screenNode ) {
+                this.screenNode.invalidateNodeList( );
+            }
+
+        } );
 
     }
 
@@ -102,111 +178,56 @@ export class Element {
         if ( element.parentNode !== this )
             return this;
 
-        var screenNode = element.screenNode;
+        return this.applyElementBoxInvalidatingActions( true, true, ( ) => {
 
-        element.invalidateRects( );
+            var screenNode = element.screenNode;
 
-        if ( this.lastChild === element )
-            this.lastChild = element.previousSibling;
+            element.elementBox.invalidate( );
 
-        if ( this.firstChild === element )
-            this.firstChild = element.nextSibling;
+            if ( this.lastChild === element )
+                this.lastChild = element.previousSibling;
 
-        if ( element.previousSibling )
-            element.previousSibling.nextSibling = element.nextSibling;
+            if ( this.firstChild === element )
+                this.firstChild = element.nextSibling;
 
-        if ( element.nextSibling )
-            element.nextSibling.previousSibling = element.previousSibling;
+            if ( element.previousSibling )
+                element.previousSibling.nextSibling = element.nextSibling;
 
-        element.screenNode = null;
-        element.parentNode = null;
+            if ( element.nextSibling )
+                element.nextSibling.previousSibling = element.previousSibling;
 
-        element.previousSibling = null;
-        element.nextSibling = null;
+            element.screenNode = null;
+            element.parentNode = null;
 
-        var index = this.childNodes.indexOf( element );
-        this.childNodes.splice( index, 1 );
+            element._cascadeScreenNode( );
 
-        if ( screenNode )
-            screenNode.invalidateNodeList( );
+            element.previousSibling = null;
+            element.nextSibling = null;
 
-        return this;
+            var index = this.childNodes.indexOf( element );
+            this.childNodes.splice( index, 1 );
 
-    }
+            if ( screenNode ) {
+                screenNode.invalidateNodeList( );
+            }
 
-    invalidateRects( invalidateX = true, invalidateY = true, bubbleUp = true ) {
-
-        if ( ! invalidateX && ! invalidateY )
-            return this;
-
-        this._elementBox.invalidate( invalidateX, invalidateY );
-
-        if ( bubbleUp && this.parentNode )
-            this.parentNode.invalidateRects( invalidateX, invalidateY );
-
-        this.childNodes.forEach( element => {
-            element.invalidateRects( invalidateX, invalidateY, false );
         } );
 
-        return this;
-
     }
 
-    getElementBox( ) {
-
-        return this._elementBox.get( );
-
-    }
-
-    getContentBox( ) {
-
-        return this._contentBox.get( );
-
-    }
-
-    getScrollElementBox( ) {
-
-        return this._scrollElementBox.get( );
-
-    }
-
-    getScrollContentBox( ) {
-
-        return this._scrollContentBox.get( );
-
-    }
-
-    getWorldElementBox( ) {
-
-        return this._worldElementBox.get( );
-
-    }
-
-    getWorldContentBox( ) {
-
-        return this._worldContentBox.get( );
-
-    }
-
-    getClipElementBox( ) {
-
-        return this._clipElementBox.get( );
-
-    }
-
-    getClipContentBox( ) {
-
-        return this._clipContentBox.get( )
-
-    }
+    /**
+    */
 
     scrollIntoView( anchor ) {
 
-        var elementBox = this.getElementBox( );
+        if ( ! this.parentNode )
+            return this;
+
+        var elementBox = this.elementBox.get( );
         var top = elementBox.top, height = elementBox.height;
 
         var parentScrollTop = this.parentNode.scrollTop;
-        var parentHeight = this.parentNode.getContentBox( ).height;
+        var parentHeight = this.parentNode.contentBox.get( ).height;
 
         if ( top >= parentScrollTop && top + height < parentScrollTop + parentHeight )
             return this;
@@ -229,7 +250,7 @@ export class Element {
                 this.parentNode.scrollTo( top + height - parentHeight );
             break ;
 
-            default :
+            default:
             throw new Error( 'Invalid scroll anchor' );
 
         }
@@ -237,6 +258,9 @@ export class Element {
         return this;
 
     }
+
+    /**
+     */
 
     focus( ) {
 
@@ -246,7 +270,7 @@ export class Element {
         this.screenNode.activeElement.blur( );
 
         this.screenNode.activeElement = this;
-        this._computeActiveStyles( );
+        this.refreshActiveStyles( );
 
         var event = new Event( 'focus', { target : this, cancelable : false } );
         this.dispatchEvent( event );
@@ -255,13 +279,16 @@ export class Element {
 
     }
 
+    /**
+     */
+
     blur( ) {
 
         if ( ! this.screenNode || this.screenNode.activeElement !== this )
             return this;
 
         this.screenNode.activeElement = this.screenNode;
-        this._computeActiveStyles( );
+        this.refreshActiveStyles( );
 
         var event = new Event( 'blur', { target : this, cancelable : false } );
         this.dispatchEvent( event );
@@ -269,6 +296,23 @@ export class Element {
         return this;
 
     }
+
+    /**
+     */
+
+    declareEvent( name ) {
+
+        if ( this._events[ name ] )
+            throw new Error( 'Event already declared: ' + name );
+
+        this._events[ name ] = { userActions : [ ], defaultActions : [ ] };
+
+        return this;
+
+    }
+
+    /**
+     */
 
     dispatchEvent( event ) {
 
@@ -281,46 +325,216 @@ export class Element {
 
         event.currentTarget = this;
 
-        for ( var t = 0, T = listeners.length; t < T; ++ t )
-            listeners[ t ].call( this, event );
+        for ( var t = 0, T = listeners.userActions.length; t < T; ++ t )
+            listeners.userActions[ t ].call( this, event );
+
+        for ( var t = 0, T = listeners.defaultActions.length; t < T && ! event.isDefaultPrevented( ); ++ t )
+            listeners.defaultActions[ t ].call( this, event );
 
         return this;
 
     }
 
-    addEventListener( name, callback ) {
+    /**
+     */
+
+    addEventListener( name, callback, { isDefaultAction } = { } ) {
 
         if ( ! this._events[ name ] )
             throw new Error( 'Invalid event name "' + name + '"' );
 
-        this._events[ name ].push( callback );
+        if ( isDefaultAction ) {
+            this._events[ name ].defaultActions.unshift( callback );
+        } else {
+            this._events[ name ].userActions.push( callback );
+        }
 
         return this;
 
     }
 
-    addShortcutListener( sequence, callback ) {
+    /**
+     */
+
+    addShortcutListener( sequence, callback, options ) {
 
         var sequence = new KeySequence( sequence );
 
-        this.addEventListener( 'keypress', e => {
-            if ( sequence.match( e ) )
-                callback.call( this, e ); } );
+        this.addEventListener( 'data', e => {
+
+            if ( ! e.key )
+                return ;
+
+            if ( ! sequence.match( e.key ) )
+                return ;
+
+            callback.call( this, e );
+
+        }, options );
 
         return this;
 
     }
 
-    _computeActiveStyles( ) {
+    /**
+     */
+
+    applyElementBoxInvalidatingActions( invalidateX, invalidateY, invalidatingActionsCallback ) {
+
+        // "topMostInvalidation" contains a reference to the top-most invalidated element
+        // "invalidatedElement" contains the full set of invalidated elements
+
+        var topMostInvalidation = null;
+        var invalidatedElements = [ ];
+
+        // First step, we push the element itself
+
+        invalidatedElements.push( this );
+
+        // Second step, we push every direct flexible-size parents of the element
+
+        for ( var parent = this.parentNode; parent; parent = parent.parentNode ) {
+
+            invalidatedElements.push( parent );
+
+            var shouldBreakX = ! invalidateX || ! parent.activeStyle.flags.hasAdaptiveWidth;
+            var shouldBreakY = ! invalidateY || ! parent.activeStyle.flags.hasAdaptiveHeight;
+
+            if ( shouldBreakX && shouldBreakY ) {
+                break ;
+            }
+
+        }
+
+        topMostInvalidation = invalidatedElements[ invalidatedElements.length - 1 ];
+
+        // (-invalidateY only-) Third step, each of those invalidated element has to update its following siblings too, but only when they have "static" / "relative" positioning
+        // We don't need to do this if we're invalidating the X-axis only, because OhUI! does not handle horizontal rendering yet
+
+        if ( invalidateY ) {
+
+            invalidatedElements.forEach( element => {
+
+                if ( ! element.activeStyle.flags.staticPositioning )
+                    return ;
+
+                while ( ( element = element.nextSibling ) ) {
+                    if ( element.activeStyle.flags.staticPositioning ) {
+                        invalidatedElements.push( element );
+                    }
+                }
+
+            } );
+
+        }
+
+        // Fourth step, we're preparing a rendering of the top-most invalidated element
+        // (If the element shrinks, then having prepared a redraw now allow us to remove the extraneous space)
+
+        if ( this.screenNode )
+            this.screenNode.prepareRedraw( topMostInvalidation.clipElementBox.get( ) );
+
+        // Fifth step, we execute all the commands that will invalidate the box of our elements
+
+        invalidatingActionsCallback( );
+
+        // Sixth step, each invalidated element also has to invalidate its children using relative sizes - recursively
+        // Wanna know why we're doing it here rather than in fourth step? It's because the "invalidating actions" may have be to add (or remove) a child!
+
+        var invalidatedElementsPass = invalidatedElements;
+
+        var cycle = function ( ) {
+
+            var currentInvalidatedElementPass = invalidatedElementsPass;
+            invalidatedElementsPass = [ ];
+
+            currentInvalidatedElementPass.forEach( element => {
+                element.childNodes.forEach( child => {
+                    if ( invalidatedElements.indexOf( child ) === -1 ) {
+                        invalidatedElementsPass.push( child );
+                        invalidatedElements.push( child );
+                    }
+                } );
+            } );
+
+        };
+
+        while ( invalidatedElementsPass.length )
+            cycle( );
+
+        // Seventh step, we can now actually invalidate the elements
+
+        invalidatedElements.forEach( element => {
+            element.elementBox.invalidate( ); } );
+
+        // Eighth step, we're preparing a rendering of the top-most invalidated element
+        // Don't forget to invalidate the render list: if the element shrinks, then previously hidden elements may be reveled
+        // (We're doing it another time, in case the element grows)
+
+        if ( this.screenNode ) {
+            this.screenNode.invalidateRenderList( );
+            this.screenNode.prepareRedraw( topMostInvalidation.clipElementBox.get( ) );
+        }
+
+        return this;
+
+    }
+
+    /**
+     */
+
+    prepareRedraw( ) {
+
+        if ( ! this.screenNode )
+            return ;
+
+        this.screenNode.prepareRedrawRect( this.clipElementBox.get( ) );
+
+    }
+
+    /**
+     */
+
+    renderLine( x, y, l ) {
+
+        return new Array( l + 1 ).join( this.activeStyle.ch || ' ' );
+
+    }
+
+    /**
+     */
+
+    refreshActiveStyles( ) {
 
         var style = extend( true, { }, this.style );
 
         if ( this.screenNode && this.screenNode.activeElement === this )
             extend( true, style, style.active );
 
-        extend( true, style, {
-            position : style.top == null && style.bottom == null ? 'static' : 'absolute'
-        } );
+        if ( style.position === 'static' || style.position === 'relative' )
+            style.left = style.right = style.top = style.bottom = null;
+
+        if ( style.left != null && style.right != null )
+            style.width = style.minWidth = style.maxWidth = null;
+
+        if ( style.top != null && style.bottom != null )
+            style.height = style.minHeight = style.maxHeight = null;
+
+        if ( style.width === 'auto' )
+            style.width = '100%';
+
+        if ( style.height === 'auto' )
+            style.height = 'adaptive';
+
+        extend( true, style, { flags : {
+            isVisible : style.display !== 'none',
+            staticPositioning : style.position === 'static' || style.position === 'relative',
+            absolutePositioning : style.position === 'absolute' || style.position === 'fixed',
+            parentRelativeWidth : ( style.left != null && style.right != null ) || [ style.left, style.right, style.width, style.minWidth, style.maxWidth ].some( value => percentageRegexF.test( value ) ),
+            parentRelativeHeight : ( style.top != null && style.bottom != null ) || [ style.top, style.bottom, style.height, style.minHeight, style.maxHeight ].some( value => percentageRegexF.test( value ) ),
+            hasAdaptiveWidth : style.width === 'adaptive',
+            hasAdaptiveHeight : style.height === 'adaptive'
+        } } );
 
         this._switchActiveStyle( style );
 
@@ -339,36 +553,26 @@ export class Element {
 
         var changed = property => newActiveStyle[ property ] !== this.activeStyle[ property ];
 
-        var dirtyXBoxes = [ 'border', 'left', 'right', 'width' ].some( changed );
-        var dirtyYBoxes = [ 'border', 'top', 'bottom', 'height' ].some( changed );
-        var dirtyRenderList = [ 'zIndex' ].some( changed );
+        var dirtyContentBox = [ 'border', 'ch', 'textAlign' ].some( changed );
+        var dirtyElementBoxesX = [ 'position', 'left', 'right', 'width', 'minWidth', 'maxWidth' ].some( changed );
+        var dirtyElementBoxesY = [ 'position', 'top', 'bottom', 'height', 'minHeight', 'maxHeight' ].some( changed );
+        var dirtyRenderList = [ 'display', 'zIndex' ].some( changed );
 
-        if ( dirtyXBoxes || dirtyYBoxes ) {
-            this._prepareRedrawSelf( );
-            this.invalidateRects( dirtyXBoxes, dirtyYBoxes );
+        var actions = ( ) => { this.activeStyle = newActiveStyle; };
+        this.applyElementBoxInvalidatingActions( true, true, actions );
+
+        if ( this.screenNode && dirtyRenderList ) {
+            this.screenNode.invalidateRenderList( );
         }
-
-        this.activeStyle = newActiveStyle;
-
-        if ( dirtyRenderList && this.screenNode )
-            this.screenNode._clearRenderList( );
-
-        this._prepareRedrawSelf( );
-
-        this.foo = true;
 
     }
 
-    /**
-     * Ask the top-most screen element to redraw the element clip rect when possible.
-     */
+    _cascadeScreenNode( ) {
 
-    _prepareRedrawSelf( ) {
-
-        if ( ! this.screenNode )
-            return ;
-
-        this.screenNode.prepareRedraw( this.getClipElementBox( ) );
+        for ( var child of this.childNodes ) {
+            child.screenNode = this.screenNode;
+            child._cascadeScreenNode( );
+        }
 
     }
 

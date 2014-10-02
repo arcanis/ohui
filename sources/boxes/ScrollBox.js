@@ -2,26 +2,24 @@ import { Box } from '../boxes/Box';
 
 export class ScrollBox extends Box {
 
-    refreshX( ) {
+    refreshSize( axis ) {
 
-        var elementBox = this._context.get( true, false );
+        var contextBoxRect = this._context[ axis.get ]( );
 
-        this._rect.left = elementBox.left;
-        this._rect.right = elementBox.right;
-        this._rect.width = elementBox.width;
+        this._rect[ axis.size ] = contextBoxRect[ axis.size ];
 
     }
 
-    refreshY( ) {
+    refreshPosition( axis ) {
 
-        var scrollTop = this._element.activeStyle.position === 'static' ?
-            this._element.parentNode.scrollTop : 0;
+        var scroll = this._element.activeStyle.flags.staticPositioning ||
+                     this._element.activeStyle.position === 'absolute' ?
+            this._element.parentNode[ axis.scrollPosition ] : 0;
 
-        var elementBox = this._context.get( false, true );
+        var contextBoxRect = this._context[ axis.get ]( );
 
-        this._rect.top = elementBox.top - scrollTop;
-        this._rect.bottom = elementBox.bottom + scrollTop;
-        this._rect.height = elementBox.height;
+        this._rect[ axis.a ] = contextBoxRect[ axis.a ] - scroll;
+        this._rect[ axis.b ] = contextBoxRect[ axis.b ] + scroll;
 
     }
 

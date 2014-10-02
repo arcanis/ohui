@@ -6,9 +6,11 @@ import { ansiColors } from './constants';
 
 export class Input extends Text {
 
-    constructor( style ) {
+    constructor( style, { monoline } = { } ) {
 
         super( extend( true, {
+
+            minHeight : 1,
 
             focusable : true,
             ch : '.',
@@ -21,10 +23,10 @@ export class Input extends Text {
 
         }, style ) );
 
-        this._events[ 'input' ] = [ ];
-
         this._caretOffset = 0;
         this._innerValue = '';
+
+        this.declareEvent( 'input' );
 
         Object.defineProperty( this, 'value', {
 
@@ -32,10 +34,13 @@ export class Input extends Text {
 
             set : ( newValue ) => {
 
+                if ( monoline )
+                    newValue = newValue.replace( /(\r\n|\r|\n)/g, '' );
+
                 this._innerValue = newValue;
                 this._caretOffset = this._innerValue.length;
 
-                this.setContent( this._innerValue );
+                this.innerText = this._innerValue;
 
             }
 
@@ -43,32 +48,57 @@ export class Input extends Text {
 
         this.addEventListener( 'data', e => {
 
-            var data = e.data.replace( /(\r\n|\r|\n)/g, '' );
+            if ( ! e.data )
+                return ;
 
-            if ( this._caretOffset !== this._innerValue.length ) {
-                this._innerValue = this._innerValue.substr( 0, this._caretOffset ) + data + this._innerValue.substr( this._caretOffset );
-            } else {
-                this._innerValue += data;
-            }
+            e.setDefault( ( ) => {
 
-            this._caretOffset += data.length;
-            this.setContent( this._innerValue );
+                var data = e.data;
+
+                if ( monoline )
+                    data = data.replace( /(\r\n|\r|\n)/g, '' );
+
+                if ( data.length === 0 )
+                    return ;
+
+                if ( this._caretOffset !== this._innerValue.length ) {
+                    this._innerValue = this._innerValue.substr( 0, this._caretOffset ) + data + this._innerValue.substr( this._caretOffset );
+                } else {
+                    this._innerValue += data;
+                }
+
+                this._caretOffset += data.length;
+                this.innerText = this._innerValue;
+
+                var event = new Event( 'input', { target : this } );
+                this.dispatchEvent( event );
+
+            } );
 
         } );
 
-        this.addShortcutListener( 'backspace', ( ) => {
+        this.addShortcutListener( 'backspace', e => {
 
-            if ( this._caretOffset === 0 )
-                return ;
+            e.setDefault( ( ) => {
 
-            if ( this._caretOffset !== this._innerValue.length ) {
-                this._innerValue = this._innerValue.substr( 0, this._caretOffset - 1 ) + this._innerValue.substr( this._caretOffset );
-            } else {
-                this._innerValue = this._innerValue.substr( 0, this._caretOffset - 1 );
-            }
+                e.preventDefault( );
 
-            this._caretOffset -= 1;
-            this.setContent( this._innerValue );
+                if ( this._caretOffset === 0 )
+                    return ;
+
+                if ( this._caretOffset !== this._innerValue.length ) {
+                    this._innerValue = this._innerValue.substr( 0, this._caretOffset - 1 ) + this._innerValue.substr( this._caretOffset );
+                } else {
+                    this._innerValue = this._innerValue.substr( 0, this._caretOffset - 1 );
+                }
+
+                this._caretOffset -= 1;
+                this.innerText = this._innerValue;
+
+                var event = new Event( 'input', { target : this } );
+                this.dispatchEvent( event );
+
+            } );
 
         } );
 

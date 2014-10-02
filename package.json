@@ -2,11 +2,12 @@
 
     "name" : "ohui",
     "description" : "Node.js terminal-based graphical library",
-    "version" : "0.0.2",
+    "version" : "0.0.3",
 
     "main" : "./main",
 
     "scripts" : {
+        "test" : "npm run-script prepublish && $(npm bin)/mocha tests/*.js",
         "prepublish" : "$(npm bin)/traceur --dir sources compiled --modules=commonjs"
     },
 
@@ -19,7 +20,8 @@
     },
 
     "devDependencies" : {
-        "should" : "^4.0.4",
+        "mocha" : "^1.21.4",
+        "chai" : "^1.9.1",
         "traceur" : "^0.0.58",
         "systemjs" : "^0.8.2"
     }

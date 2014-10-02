@@ -2,21 +2,23 @@ import { Box } from '../boxes/Box';
 
 export class TerminalBox extends Box {
 
-    refreshX( ) {
+    constructor( ... args ) {
 
-        this._rect.left = 0;
-        this._rect.right = 0;
+        super( ... args );
 
-        this._rect.width = this._element._out.columns;
+        this._rect.left = this._rect.right = 0;
+        this._rect.top = this._rect.bottom = 0;
 
     }
 
-    refreshY( ) {
+    refreshSize( axis ) {
 
-        this._rect.top = 0;
-        this._rect.bottom = 0;
-
+        this._rect.width = this._element._out.columns;
         this._rect.height = this._element._out.rows;
+
+    }
+
+    refreshPosition( axis ) {
 
     }
 

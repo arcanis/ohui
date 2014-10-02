@@ -19,19 +19,26 @@ OhUI! is a graphical Node library, designed to make it easy to build pretty term
 
   - **new Element( style )**
 
-    The Element class is the base of every other element. You probably won't ever have to instanciate it directly.
-
-    A few DOM methods are implemented:
+    ### Methods
 
       - *appendChild( element )*
       - *removeChild( element )*
       - *scrollIntoView( element, anchor = "top" | "bottom" )*
-      - *addEventListener( event, callback )*
+      - *dispatchEvent( event )*
+      - *declareEvent( eventName )*
+      - *addEventListener( eventName, callback )*
       - *addShortcutListener( sequence, callback )*
       - *focus( )*
       - *blur( )*
 
-    And a few DOM events are also from the party:
+    ### Properties
+
+      - *scrollLeft*
+      - *scrollTop*
+      - *scrollWidth*
+      - *scrollHeight*
+
+    ### Events
 
       - *focus*
       - *blur*
@@ -41,42 +48,103 @@ OhUI! is a graphical Node library, designed to make it easy to build pretty term
 
   - **new Screen( { stdin, stdout } )**
 
-    The screen is the base element of any scene. From the time it is instancied, OhUI! takes over the standard input and output streams.
+    ### Events
 
-    Since a Screen is an element, you can use any method listed above.
+      - *resize*
 
   - **new Block( style )**
 
-    A block is the best generic container that you'll find over here. If you need to group multiple elements together, then the Block is the best choice.
-
-    The Block elements are also currently the only ones to actually implement the border rendering.
-
   - **new Text( style )**
 
-    This element displays a string into an element. It wraps the text automatically.
-
-    It also implements the following DOM methods and properties:
+    ### Properties
 
       - *innerText*
 
   - **new Input( style )**
 
-    This element is focusable by default, and accepts user input. It emits an `input` event when modified such a way.
-
-    It also implements the following DOM methods and properties:
+    ### Properties
 
       - *value*
 
 ## Styles
 
-  - **focusable** simply makes an element focusable if set to true. A focusable element can be focused by clicking on it, or cycling threw every focusable element with <kbd>Tab</kbd> and <kbd>Shift+Tab</kbd>.
-  - **border** may be null or an object. Such an object has some required fields (`topLeft`, `topRight`, `bottomLeft`, `bottomRight`, `vertical` and `horizontal`) and a few optional fields (`fg` and `bg`).
-  - **top/bottom/left/right** may each be null, or a number, or a percentage (`"50%"`), or a range-limited percentage (`"50% {10,"`, `"50% {,20}"` or `"50% {10,20}"`). Each of them is relative to its parent content box.
-  - **width** may be just like above. If null, the width will be the same as the parent, except if left and/or right aren't null, then it will compute the width correctly.
-  - **height** acts like the width, except that if both width, top and right are null, then the height will be the sum of the height of its elements.
-  - **color** may be null or an object with `fg` and/or `bg` properties.
-  - **zIndex** pushes element at the front (or back). It's useful to achieve some effects.
-  - **active** is a special style property. It is an object containing any of the styles above, and mixed with the standard styles when the element is focused (think of it like an `:active` equivalent).
+  - **focusable**
+
+      - Undefined/Null: The element won't be focusable
+      - Boolean: If true, the element will be focusable
+
+  - **ch**
+
+      - Undefined/Null: The background character will be a space.
+      - String: The background character will be the specified string. Only use strings whose length is exactly 1.
+
+  - **border**
+
+      - Undefined/Null: The element won't have borders
+      - Object: The element will have a border. The object has to contain the following fields:
+
+          - topLeft
+          - topRight
+          - bottomLeft
+          - bottomRight
+          - horizontal
+          - vertical
+
+  - **position**
+
+      - Undefined/Null: The position will defaults to "static".
+      - "static": The element will be under the previous static element.
+      - "relative": Just like "static", except that the element will also count as the anchor for "absolute" children.
+      - "absolute": Will be positioned relative to the first "relative", "absolute" or "fixed" parent. Does not count in scrollHeight value.
+      - "fixed": Just like "absolute", except that the positioning will ignore elements' scrolling.
+
+  - **left**, **right**, **top** and **bottom**
+
+    Totally ignored if the position is "static" (or "relative", which is a bug).
+
+      - Neither *left* and *right* are Undefined/Null: The default width will be the space between the two values.
+      - *left* is Undefined/Null but not *right*: The element will be right-aligned.
+      - *right* is Undefined/Null but not *left*: The element will be left-aligned.
+      - *left* and *right* are both Undefined/Null: The element will be left-aligned.
+
+    As for the values:
+
+      - Number: Will be positioned at *NNN* cells from the alignment.
+      - Percentage: Will be positioned at *Percentage* cells from the alignment, relative to the first non-adaptive parent width.
+
+    Same for *top*, *bottom* and height.
+
+  - **width** and **height**
+
+      - Number: The element will be *NNN* cells wide.
+      - Percentage: Will be *Percentage* cells wide, relative to the first non-adaptive parent width.
+      - "adaptive": The width will be the minimal width requested to hold the element content.
+
+    Same for *height*.
+
+  - **minWidth**, **minHeight**, **maxWidth** and **maxHeight**
+
+    Supercedes *width* and *height*. The *min* values are prefered over *max* values.
+
+  - **color**
+
+      - Undefined/Null: The element won't have any color.
+      - Object: The element content will be colored. The object can have those fields:
+
+          - fg
+          - bg
+
+  - **zIndex**
+
+    - Undefined/Null: The element won't have any kind of rendering priority.
+    - Number: The element will be put on a layer in front every non-layered elements. The number is the layer index, greater means that the element will be in front of lesser layers.
+
+  - **active**
+
+    Think of it like an `:active` pseudo-class equivalent.
+
+      - Undefined/Null: Nothing special happens.
+      - Object: This object can contain any other style property. They will be applied as long as the element will be focused.
 
 ## Shortcuts
 

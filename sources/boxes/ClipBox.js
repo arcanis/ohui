@@ -2,57 +2,49 @@ import { Box } from '../boxes/Box';
 
 export class ClipBox extends Box {
 
-    refreshX( ) {
+    refreshSize( axis ) {
 
-        var innerRect = this._context.get( true, false );
-        var parentClipRect = this._element.parentNode._clipContentBox.get( true, false );
+        var contextBoxRect = this._context[ axis.get ]( );
+        var parentClipBoxRect = this._element.parentNode.clipContentBox[ axis.get ]( );
 
         var doesIntersect =
-            innerRect.left < parentClipRect.left + parentClipRect.width &&
-            innerRect.left + innerRect.width > parentClipRect.left &&
-            innerRect.width > 0 && parentClipRect.width > 0;
+            contextBoxRect[ axis.a ] < parentClipBoxRect[ axis.a ] + parentClipBoxRect[ axis.size ] &&
+            contextBoxRect[ axis.a ] + contextBoxRect[ axis.size ] > parentClipBoxRect[ axis.a ] &&
+            contextBoxRect[ axis.size ] > 0 && parentClipBoxRect[ axis.size ] > 0;
 
         if ( ! doesIntersect ) {
 
-            this._rect.left = NaN;
-            this._rect.right = NaN;
-
-            this._rect.width = NaN;
+            this._rect[ axis.size ] = NaN;
 
         } else {
 
-            this._rect.left = Math.max( innerRect.left, parentClipRect.left );
-            this._rect.right = Math.max( innerRect.right, parentClipRect.right );
+            var a = Math.max( contextBoxRect[ axis.a ], parentClipBoxRect[ axis.a ] );
 
-            this._rect.width = Math.min( innerRect.left + innerRect.width, parentClipRect.left + parentClipRect.width ) - this._rect.left;
+            this._rect[ axis.size ] = Math.min( contextBoxRect[ axis.a ] + contextBoxRect[ axis.size ], parentClipBoxRect[ axis.a ] + parentClipBoxRect[ axis.size ] ) - a;
 
         }
 
     }
 
-    refreshY( ) {
+    refreshPosition( axis ) {
 
-        var innerRect = this._context.get( false, true );
-        var parentClipRect = this._element.parentNode._clipContentBox.get( false, true );
+        var contextBoxRect = this._context[ axis.get ]( );
+        var parentClipBoxRect = this._element.parentNode.clipContentBox[ axis.get ]( );
 
         var doesIntersect =
-            innerRect.top < parentClipRect.top + parentClipRect.height &&
-            innerRect.top + innerRect.height > parentClipRect.top &&
-            innerRect.height > 0 && parentClipRect.height > 0;
+            contextBoxRect[ axis.a ] < parentClipBoxRect[ axis.a ] + parentClipBoxRect[ axis.size ] &&
+            contextBoxRect[ axis.a ] + contextBoxRect[ axis.size ] > parentClipBoxRect[ axis.a ] &&
+            contextBoxRect[ axis.size ] > 0 && parentClipBoxRect[ axis.size ] > 0;
 
         if ( ! doesIntersect ) {
 
-            this._rect.top = NaN;
-            this._rect.bottom = NaN;
-
-            this._rect.height = NaN;
+            this._rect[ axis.a ] = NaN;
+            this._rect[ axis.b ] = NaN;
 
         } else {
 
-            this._rect.top = Math.max( innerRect.top, parentClipRect.top );
-            this._rect.bottom = Math.max( innerRect.bottom, parentClipRect.bottom );
-
-            this._rect.height = Math.min( innerRect.top + innerRect.height, parentClipRect.top + parentClipRect.height ) - this._rect.top;
+            this._rect[ axis.a ] = Math.max( contextBoxRect[ axis.a ], parentClipBoxRect[ axis.a ] );
+            this._rect[ axis.b ] = Math.max( contextBoxRect[ axis.b ], parentClipBoxRect[ axis.b ] );
 
         }
 

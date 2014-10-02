@@ -1,141 +1,81 @@
-import { Box } from '../boxes/Box';
-
-var numberRegexp = '([+-]?(?:[0-9]+\\.[0-9]*|[0-9]*\\.[0-9]+|[0-9]+))';
-var minMaxRegexp = '(?:\\{' + numberRegexp + '?,' + numberRegexp +'?\\})';
-
-var numberFormatRegexp = new RegExp( '^' + numberRegexp + '$' );
-var percentFormatRegexp = new RegExp( '^' + numberRegexp + '%(?: ' + minMaxRegexp + ')?$' );
-
-function computeRelativeValue( value, relativeTo ) {
-
-    if ( value == null )
-        return null;
-
-    if ( ! isNaN( Number( value ) ) )
-        return Number( value );
-
-    var strValue = value + '', match;
-
-    if ( ( match = value.match( percentFormatRegexp ) ) ) {
-
-        value = Math.floor( relativeTo * Number( match[ 1 ] ) / 100 );
-
-        if ( match[ 2 ] ) value = Math.max( value, Number( match[ 2 ] ) );
-        if ( match[ 3 ] ) value = Math.min( value, Number( match[ 3 ] ) );
-
-        return value;
-
-    } else {
-
-        return undefined;
-
-    }
-
-}
+import { Box }                            from '../boxes/Box';
+import { numberRegexF, percentageRegexF } from '../constants';
 
 export class ElementBox extends Box {
 
-    refreshX( ) {
+    refreshSize( axis ) {
 
-        var parentWidth = this._element.parentNode._contentBox.get( true, false ).width;
-        var activeStyle = this._element.activeStyle;
+        switch ( this._element.activeStyle.position ) {
 
-        var left = computeRelativeValue( activeStyle.left, parentWidth );
-        var right = computeRelativeValue( activeStyle.right, parentWidth );
-        var width = computeRelativeValue( activeStyle.width, parentWidth );
+            case 'static' :
+            case 'relative' :
+                this._refreshSizeStatic( axis );
+            break ;
 
-        if ( left != null && right != null ) {
+            case 'absolute' :
+            case 'fixed' :
+                this._refreshSizeAbsolute( axis );
+            break ;
 
-            this._rect.left = left;
-            this._rect.right = right;
+        }
 
-            this._rect.width = Math.max( 0, parentWidth - this._rect.left - this._rect.right );
+        var min = this._resolveValue( axis, this._element.activeStyle[ axis.minSize ] );
+        var max = this._resolveValue( axis, this._element.activeStyle[ axis.maxSize ] );
 
-        } else if ( left != null ) {
+        if ( max != null && max < this._rect[ axis.size ] )
+            this._rect[ axis.size ] = max;
 
-            this._rect.left = left;
-            this._rect.width = width;
+        if ( min != null && min > this._rect[ axis.size ] ) {
+            this._rect[ axis.size ] = min;
+        }
 
-            this._rect.right = parentWidth - this._rect.left - this._rect.width;
+    }
 
-        } else if ( right != null ) {
+    refreshPosition( axis ) {
 
-            this._rect.right = right;
-            this._rect.width = width;
+        switch ( this._element.activeStyle.position ) {
 
-            this._rect.left = parentWidth - this._rect.right - this._rect.width;
+            case 'static' :
+            case 'relative' :
+                this._refreshPositionStatic( axis );
+            break ;
 
-        } else if ( width != null ) {
-
-            this._rect.left = 0;
-            this._rect.width = width;
-
-            this._rect.right = Math.max( 0, parentWidth - this._rect.width );
-
-        } else {
-
-            this._rect.left = 0;
-            this._rect.right = 0;
-
-            this._rect.width = parentWidth;
+            case 'absolute' :
+            case 'fixed' :
+                this._refreshPositionAbsolute( axis );
+            break ;
 
         }
 
     }
 
-    refreshY( ) {
+    _refreshSizeStatic( axis ) {
 
-        var parentHeight = this._getParentHeight( );
-        var activeStyle = this._element.activeStyle;
+        var size = this._resolveValue( axis, this._element.activeStyle[ axis.size ] );
 
-        var scrollTop = this._element.parentNode.scrollTop;
+        this._rect[ axis.size ] = size;
 
-        var top = computeRelativeValue( activeStyle.top, parentHeight );
-        var bottom = computeRelativeValue( activeStyle.bottom, parentHeight );
-        var height = computeRelativeValue( activeStyle.height, parentHeight );
+    }
 
-        if ( height == null && ( top == null || bottom == null ) )
-            height = this._element.scrollHeight + ( activeStyle.border ? 2 : 0 );
+    _refreshPositionStatic( axis ) {
 
-        if ( top != null && bottom != null ) {
+        this._rect[ axis.a ] = 0;
+        this._rect[ axis.b ] = this._getBaseSize( axis ) - this._rect[ axis.size ];
 
-            this._rect.top = top;
-            this._rect.bottom = bottom;
+        if ( axis.a === 'top' ) {
 
-            this._rect.height = Math.max( 0, parentHeight - this._rect.top - this._rect.bottom );
+            var previous = this._element.previousSibling;
 
-        } else if ( top != null ) {
+            while ( previous && ! previous.activeStyle.flags.staticPositioning )
+                previous = previous.previousNode;
 
-            this._rect.top = top;
-            this._rect.height = height;
+            if ( previous ) {
 
-            this._rect.bottom = parentHeight - this._rect.top - this._rect.height;
+                var previousBoxRect = previous.elementBox.getY( );
+                var top = previousBoxRect.top + previousBoxRect.height;
 
-        } else if ( bottom != null ) {
-
-            this._rect.bottom = bottom;
-            this._rect.height = height;
-
-            this._rect.top = parentHeight - this._rect.bottom - this._rect.height;
-
-        } else {
-
-            this._rect.top = 0;
-            this._rect.height = height;
-
-            this._rect.bottom = Math.max( 0, parentHeight - this._rect.height );
-
-            for ( var element = this._element.previousSibling; element; element = element.previousSibling )
-                if ( element.activeStyle.position === 'static' )
-                    break ;
-
-            if ( element ) {
-
-                var previousBox = element._elementBox.get( false, true );
-                var offsetTop = previousBox.top + previousBox.height;
-
-                this._rect.top += offsetTop;
-                this._rect.bottom -= offsetTop;
+                this._rect[ axis.a ] += top;
+                this._rect[ axis.b ] -= top;
 
             }
 
@@ -143,15 +83,100 @@ export class ElementBox extends Box {
 
     }
 
-    _getParentHeight( ) {
+    _refreshSizeAbsolute( axis ) {
 
-        var parent = this._element.parentNode;
+        var size = this._resolveValue( axis, this._element.activeStyle[ axis.size ] );
 
-        for ( ; parent; parent = parent.parentNode )
-            if ( parent.activeStyle.height != null || ( parent.activeStyle.top != null && parent.activeStyle.bottom != null ) )
-                return parent._contentBox.get( false, true ).height;
+        if ( size != null ) {
 
-        return NaN;
+            this._rect[ axis.size ] = size;
+
+        } else {
+
+            var base = this._getBaseSize( axis );
+
+            var a = this._resolveValue( axis, this._element.activeStyle[ axis.a ] );
+            var b = this._resolveValue( axis, this._element.activeStyle[ axis.b ] );
+
+            this._rect[ axis.size ] = base - a - b;
+
+        }
+
+    }
+
+    _refreshPositionAbsolute( axis ) {
+
+        var base = this._getBaseSize( axis );
+        var size = this._rect[ axis.size ];
+
+        var a = this._resolveValue( axis, this._element.activeStyle[ axis.a ] );
+        var b = this._resolveValue( axis, this._element.activeStyle[ axis.b ] );
+
+        if ( a != null ) {
+            b = base - size - a;
+        } else if ( b != null ) {
+            a = base - size - b;
+        } else {
+            a = 0;
+            b = base - size;
+        }
+
+        this._rect[ axis.a ] = a;
+        this._rect[ axis.b ] = b;
+
+    }
+
+    _resolveValue( axis, value ) {
+
+        if ( value == null )
+            return value;
+
+        if ( typeof value === 'number' )
+            return Math.floor( value );
+
+        if ( typeof value !== 'string' )
+            throw new Error( 'Invalid value type' );
+
+        if ( value === 'adaptive' )
+            return this._getAdaptiveSize( axis );
+
+        if ( numberRegexF.test( value ) )
+            return Math.floor( value.match( numberRegexF )[ 1 ] );
+
+        if ( percentageRegexF.test( value ) )
+            return Math.floor( value.match( percentageRegexF )[ 1 ] * this._getBaseSize( axis ) / 100 );
+
+        throw new Error( 'Invalid value format (is "' + value + '")' );
+
+    }
+
+    _getAdaptiveSize( axis ) {
+
+        return this._element[ axis.scrollSize ];
+
+    }
+
+    _getBaseSize( axis ) {
+
+        var baseElement = this._element.parentNode;
+
+        while ( baseElement && baseElement.activeStyle.flags[ axis.adaptiveFlag ] )
+            baseElement = baseElement.parentNode;
+
+        if ( ! baseElement )
+            return 0;
+
+        switch ( axis.size ) {
+
+            case 'width' :
+                return baseElement.contentBox.getWidth( );
+            break ;
+
+            case 'height' :
+                return baseElement.contentBox.getHeight( );
+            break ;
+
+        }
 
     }
 

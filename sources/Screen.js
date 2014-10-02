@@ -1,11 +1,14 @@
-import   keypress      from 'keypress';
-import   tput          from 'node-tput';
-import   stable        from 'stable';
+import   keypress             from 'keypress';
+import   tput                 from 'node-tput';
+import   stable               from 'stable';
 
-import { TerminalBox } from './boxes/TerminalBox';
-import { Event     }   from './utilities/Event';
-import { Rect }        from './utilities/Rect';
-import { Element }     from './Element';
+import { TerminalBox }        from './boxes/TerminalBox';
+import { applyTerminalColor } from './utilities/Color';
+import { Event     }          from './utilities/Event';
+import { Rect }               from './utilities/Rect';
+import { Element }            from './Element';
+
+var invalidUtf8Symbols = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/;
 
 export class Screen extends Element {
 
@@ -14,8 +17,8 @@ export class Screen extends Element {
         super( { left : 0, right : 0, top : 0, bottom : 0 } );
 
         var terminalBox = new TerminalBox( this );
-        this._elementBox = this._worldElementBox = this._clipElementBox = terminalBox;
-        this._contentBox = this._worldContentBox = this._clipContentBox = terminalBox;
+        this.elementBox = this.scrollElementBox = this.worldElementBox = this.clipElementBox = terminalBox;
+        this.contentBox = this.scrollContentBox = this.worldContentBox = this.clipContentBox = terminalBox;
 
         this.activeElement = this;
 
@@ -37,116 +40,69 @@ export class Screen extends Element {
         this._out.write( tput( 'clear' ) );
 
         this._out.on( 'resize', ( ) => {
-            this._out.write( tput( 'clear' ) );
-            this.invalidateRects( );
-            this._prepareRedrawSelf( );
+
+            this.applyElementBoxInvalidatingActions( true, true, ( ) => {
+                this._out.write( tput( 'clear' ) );
+            } );
+
         } );
 
-        var nonPrintable = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/;
+        this._in.on( 'keypress', ( data, key ) => {
 
-        this._in.on( 'keypress', ( data, e ) => {
-            if ( data && ! nonPrintable.test( data ) ) this._dataEvent( data );
-            if ( e ) this._keyEvent( e );
+            this._keyEvent( data, key );
+
         } );
 
         this._in.on( 'mousepress', ( e ) => {
-            if ( e.release ) return ;
+
+            if ( e.release )
+                return ;
+
             this._mouseEvent( e );
+
         } );
 
         process.on( 'exit', ( ) => {
+
             keypress.disableMouse( this._out );
+
             this._out.write( tput( 'rs2' ) );
+
         } );
 
-        this.addShortcutListener( '↑-tab', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            this._focusRelativeElement( -1 );
+        this.addShortcutListener( 'S-tab', e => {
+
+            e.setDefault( ( ) => {
+
+                this._focusRelativeElement( -1 );
+
+            } );
+
         } );
 
         this.addShortcutListener( 'tab', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            this._focusRelativeElement( +1 );
-        } );
 
-        this.addShortcutListener( 'home', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            if ( ! e.target.scrollTo ) return ;
-            e.target.scrollTo( 0 );
-        } );
+            e.setDefault( ( ) => {
 
-        this.addShortcutListener( 'end', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            if ( ! e.target.scrollTo ) return ;
-            e.target.scrollTo( Infinity );
-        } );
+                this._focusRelativeElement( +1 );
 
-        this.addShortcutListener( 'up', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            if ( ! e.target.scrollBy ) return ;
-            e.target.scrollBy( -1 );
-        } );
+            } );
 
-        this.addShortcutListener( 'down', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            if ( ! e.target.scrollBy ) return ;
-            e.target.scrollBy( +1 );
-        } );
-
-        this.addShortcutListener( 'pageup', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            if ( ! e.target.scrollBy ) return ;
-            e.target.scrollBy( -10 );
-        } );
-
-        this.addShortcutListener( 'pagedown', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            if ( ! e.target.scrollBy ) return ;
-            e.target.scrollBy( +10 );
         } );
 
         this.addShortcutListener( 'C-c', e => {
-            if ( e.isDefaultPrevented( ) ) return ;
-            process.exit( );
+
+            e.setDefault( ( ) => {
+
+                process.exit( );
+
+            } );
+
         } );
 
         this.screenNode = this;
 
-        this._prepareRedrawSelf( );
-
-    }
-
-    appendChild( element ) {
-
-        super( element );
-
-        var stack = [ element ];
-
-        while ( stack.length > 0 ) {
-
-            var current = stack.shift( );
-            current.screenNode = this;
-
-            stack = stack.concat( current.childNodes );
-
-        }
-
-        this.invalidateNodeList( );
-
-        element._prepareRedrawSelf( );
-
-        return this;
-
-    }
-
-    removeChild( element ) {
-
-        if ( element.parentNode === this )
-            element._prepareRedrawSelf( );
-
-        super( element );
-
-        return this;
+        this.prepareRedraw( );
 
     }
 
@@ -177,7 +133,7 @@ export class Screen extends Element {
             var element = traverseList.shift( );
             nodeList.push( element );
 
-            traverseList = traverseList.concat( element.childNodes );
+            traverseList = element.childNodes.concat( traverseList );
 
         }
 
@@ -190,68 +146,105 @@ export class Screen extends Element {
         if ( this._renderList )
             return this._renderList;
 
-        var renderList = this._renderList = stable( this.getNodeList( ).filter( element => {
+        var makeTreeNode = ( ) => ( { layers : { }, elements : [ ] } );
 
-            var clipRect = element.getClipElementBox( );
-            return clipRect.width && clipRect.height;
+        var renderList = this._renderList = [ ];
+        var renderTree = makeTreeNode( );
+        var currentTreeNode = renderTree;
 
-        } ), ( a, b ) => {
+        var getLayer = zIndex => {
 
-            return ( a.activeStyle.zIndex | 0 ) > ( b.activeStyle.zIndex | 0 );
+            if ( typeof currentTreeNode.layers[ zIndex ] === 'undefined' )
+                currentTreeNode.layers[ zIndex ] = makeTreeNode( );
 
-        } ).reverse( );
+            return currentTreeNode.layers[ zIndex ];
+
+        };
+
+        var layeringVisitor = element => {
+
+            if ( ! element.activeStyle.flags.isVisible )
+                return ;
+
+            var clipRect = element.clipElementBox.get( );
+
+            if ( ! clipRect.width || ! clipRect.height )
+                return ;
+
+            var zIndex = element.activeStyle.zIndex;
+
+            if ( zIndex != null ) {
+
+                var previousTreeNode = currentTreeNode;
+                currentTreeNode = getLayer( zIndex );
+
+                currentTreeNode.elements.unshift( element );
+                element.childNodes.forEach( child => { layeringVisitor( child ); } );
+
+                currentTreeNode = previousTreeNode;
+
+            } else {
+
+                currentTreeNode.elements.unshift( element );
+                element.childNodes.forEach( child => { layeringVisitor( child ); } );
+
+            }
+
+        };
+
+        var flatteningVisitor = treeNode => {
+
+            var layers = Object.keys( treeNode.layers ).sort( ( a, b ) => a - b );
+
+            layers.forEach( zIndex => { flatteningVisitor( treeNode.layers[ zIndex ] ); } );
+
+            treeNode.elements.forEach( element => { renderList.push( element ); } );
+
+        };
+
+        layeringVisitor( this );
+        flatteningVisitor( renderTree );
 
         return renderList;
 
     }
 
-    prepareRedraw( rect ) {
+    prepareRedrawRect( redrawRect ) {
 
-        if ( ! rect.width || ! rect.height )
+        if ( ! redrawRect.width || ! redrawRect.height )
             return this;
 
-        if ( this._pending.some( other => other.contains( rect ) ) )
-            return this;
+        this._queueRedraw( [ redrawRect ] );
 
-        this._pending.push( rect );
-
-        if ( this._nextRedraw )
-            return this;
-
-        this._nextRedraw = setImmediate( ( ) => {
-            this._nextRedraw = null;
-            this._redraw( );
-        } );
+        if ( ! this._nextRedraw ) {
+            this._nextRedraw = setImmediate( ( ) => {
+                this._nextRedraw = null;
+                this._redraw( );
+            } );
+        }
 
         return this;
 
     }
 
-    /**
-     */
+    _keyEvent( data, key ) {
 
-    _dataEvent( data ) {
+        if ( ! data || invalidUtf8Symbols.test( data ) )
+            data = null;
 
-        var element = this.activeElement;
-        var event = new Event( 'data', { target : element, data : data.toString( ) } );
+        if ( data && ! key && data.length === 1 )
+            key = { ctrl : false, shift : false, meta : false, name : data };
 
-        for ( ; element; element = element.parentNode ) {
-            element.dispatchEvent( event );
-        }
+       if ( ! data && ! key )
+            return ;
 
-    }
+        var keyDef = key ? { control : key.ctrl, shift : key.shift, meta : key.meta, key : key.name } : null;
+        var dataEvent = new Event( 'data', { target : this.activeElement, data : data, key : keyDef } );
 
-    /**
-     */
+        for ( var element = dataEvent.target; element; element = element.parentNode )
+            element.dispatchEvent( dataEvent );
 
-    _keyEvent( e ) {
-
-        var element = this.activeElement;
-        var event = new Event( 'keypress', { target : element, control : e.ctrl, shift : e.shift, meta : e.meta, key : e.name } );
-
-        for ( ; element; element = element.parentNode ) {
-            element.dispatchEvent( event );
-        }
+        dataEvent.resolveDefault( );
 
     }
 
@@ -267,10 +260,7 @@ export class Screen extends Element {
         for ( var t = 0, T = renderList.length; t < T; ++ t ) {
 
             var element = renderList[ t ];
-            var clipBox = element.getClipElementBox( );
-
-            if ( ! element.activeStyle.focusable )
-                continue ;
+            var clipBox = element.clipElementBox.get( );
 
             if ( x < clipBox.left || x >= clipBox.left + clipBox.width )
                 continue ;
@@ -284,9 +274,20 @@ export class Screen extends Element {
                 for ( ; element; element = element.parentNode )
                     element.dispatchEvent( event );
 
-                if ( ! event.isDefaultPrevented( ) ) {
-                    event.target.scrollBy( e.scroll );
-                }
+                event.setDefault( ( ) => {
+
+                    var element = event.target;
+
+                    while ( element && ! element.scrollBy )
+                        element = element.parentNode;
+
+                    if ( element ) {
+                        element.scrollBy( e.scroll * 3 );
+                    }
+
+                } );
+
+                event.resolveDefault( );
 
             } else {
 
@@ -295,25 +296,26 @@ export class Screen extends Element {
                 for ( ; element; element = element.parentNode )
                     element.dispatchEvent( event );
 
-                if ( ! event.isDefaultPrevented( ) ) {
-                    event.target.focus( );
-                }
+                event.setDefault( ( ) => {
+
+                    var element = event.target;
+
+                    while ( element && ! element.activeStyle.focusable )
+                        element = element.parentNode;
+
+                    if ( element ) {
+                        element.focus( );
+                    }
+
+                } );
+
+                event.resolveDefault( );
 
             }
 
             break ;
 
         }
-
-    }
-
-    /**
-     * Render a background line
-     */
-
-    _renderLine( x, y, l ) {
-
-        return new Array( l + 1 ).join( this.activeStyle.ch || ' ' );
 
     }
 
@@ -337,8 +339,8 @@ export class Screen extends Element {
 
                 var element = renderList[ t ];
 
-                var fullRect = element.getWorldElementBox( );
-                var clipRect = element.getClipElementBox( );
+                var fullRect = element.worldElementBox.get( );
+                var clipRect = element.clipElementBox.get( );
 
                 if ( ! clipRect.width || ! clipRect.height )
                     continue ;
@@ -348,16 +350,29 @@ export class Screen extends Element {
                 if ( ! intersection )
                     continue ;
 
-                var exclusion = dirtyRect.exclude( intersection );
-                this._pending = this._pending.concat( exclusion );
+                var truncation = dirtyRect.exclude( intersection );
+                this._queueRedraw( truncation.slice( ) );
 
                 for ( var y = 0, Y = intersection.height; y < Y; ++ y ) {
 
                     var relativeX = intersection.left - fullRect.left;
                     var relativeY = intersection.top - fullRect.top + y;
 
+                    var line = element.renderLine( relativeX, relativeY, intersection.width );
+
+                    if ( line.length < intersection.width )
+                        line += new Array( intersection.width - line.length + 1 ).join( element.activeStyle.ch || ' ' );
+
+                    line = line.toString( );
+
+                    if ( element.activeStyle.color )
+                        line = applyTerminalColor( element.activeStyle.color.fg, element.activeStyle.color.bg ) + line;
+
+                    if ( line.indexOf( '\x1b' ) !== -1 )
+                        line = line + tput( 'sgr0' );
+
                     buffer += tput( 'cup', intersection.top + y, intersection.left );
-                    buffer += element._renderLine( relativeX, relativeY, intersection.width );
+                    buffer += line;
 
                 }
 
@@ -368,6 +383,86 @@ export class Screen extends Element {
         }
 
         this._out.write( buffer );
+
+    }
+
+    _queueRedraw( redrawList ) {
+
+        while ( redrawList.length > 0 ) {
+
+            var redrawRect = new Rect( redrawList.shift( ) );
+
+            for ( var t = 0, T = this._pending.length; t < T; ++ t ) {
+
+                var intersection = redrawRect.intersection( this._pending[ t ] );
+
+                if ( intersection ) {
+
+                    redrawList = redrawRect
+                        .exclude( intersection )
+                        .concat( redrawList );
+
+                    break ;
+
+                }
+
+            }
+
+            if ( t === T ) {
+
+                this._pending.push( redrawRect );
+
+            }
+
+        }
+
+    }
+
+    _focusRelativeElement( relativeOffset ) {
+
+        if ( relativeOffset === 0 )
+            return ;
+
+        var direction = relativeOffset < 0 ? -1 : +1;
+        relativeOffset = Math.abs( relativeOffset );
+
+        var nodeList = this.getNodeList( );
+        var nodeIndex = nodeList.indexOf( this.activeElement );
+
+        var next = function ( base ) {
+            if ( base === 0 && direction === -1 )
+                return nodeList.length - 1;
+
+            if ( base === nodeList.length - 1 && direction === 1 )
+                return 0;
+
+            return base + direction;
+
+        };
+
+        if ( nodeIndex === -1 ) {
+
+            if ( direction > 0 ) {
+                nodeList[ 0 ].focus( );
+            } else {
+                nodeList[ nodeList.length - 1 ].focus( );
+            }
+
+        } else for ( ; relativeOffset !== 0; -- relativeOffset ) {
+
+            var nextIndex = next( nodeIndex );
+
+            while ( nextIndex !== nodeIndex && ! nodeList[ nextIndex ].activeStyle.focusable )
+                nextIndex = next( nextIndex );
+
+            if ( nextIndex === nodeIndex )
+                break ;
+
+            nodeIndex = nextIndex;
+
+        }
+
+        nodeList[ nodeIndex ].focus( );
 
     }
 

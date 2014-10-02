@@ -149,11 +149,11 @@ export class Rect {
         rect.left = Math.max( this.left, other.left );
         rect.top = Math.max( this.top, other.top );
 
-        rect.right = Math.max( this.right, other.right );
-        rect.bottom = Math.max( this.bottom, other.bottom );
-
         rect.width = Math.min( this.left + this.width, other.left + other.width ) - rect.left;
         rect.height = Math.min( this.top + this.height, other.top + other.height ) - rect.top;
+
+        rect.right = Math.min( this.right + this.width, other.right + other.width ) - rect.width;
+        rect.bottom = Math.min( this.bottom + this.height, other.bottom + other.height ) - rect.height;
 
         return rect;
 

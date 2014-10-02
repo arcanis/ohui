@@ -7,31 +7,83 @@ export class Block extends Element {
 
         super( style );
 
-        Object.defineProperty( this, 'scrollHeight', {
-            get : ( ) => this.childNodes.reduce( ( max, element ) => {
-                var elementBox = element._elementBox.get( false, true );
-                return Math.max( max, elementBox.top + elementBox.height );
-            }, 0 )
+        this.addShortcutListener( 'home', e => {
+
+            e.setDefault( ( ) => {
+
+                this.scrollTo( 0 );
+
+            } );
+
+        } );
+
+        this.addShortcutListener( 'end', e => {
+
+            e.setDefault( ( ) => {
+
+                this.scrollTo( Infinity );
+
+            } );
+
+        } );
+
+        this.addShortcutListener( 'up', e => {
+
+            e.setDefault( ( ) => {
+
+                this.scrollBy( -1 );
+
+            } );
+
+        } );
+
+        this.addShortcutListener( 'down', e => {
+
+            e.setDefault( ( ) => {
+
+                this.scrollBy( +1 );
+
+            } );
+
+        } );
+
+        this.addShortcutListener( 'pageup', e => {
+
+            e.setDefault( ( ) => {
+
+                this.scrollBy( -10 );
+
+            } );
+
+        } );
+
+        this.addShortcutListener( 'pagedown', e => {
+
+            e.setDefault( ( ) => {
+
+                this.scrollBy( +10 );
+
+            } );
+
         } );
 
     }
 
     scrollTo( offset ) {
 
+        offset = Math.min( offset, this.scrollHeight - this.contentBox.get( ).height );
+        offset = Math.max( 0, offset );
+
         if ( offset === this.scrollTop )
             return this;
 
-        offset = Math.min( offset, this.scrollHeight - this.getContentBox( ).height );
-        offset = Math.max( 0, offset );
+        return this.applyElementBoxInvalidatingActions( false, true, ( ) => {
 
-        this.scrollTop = offset;
+            this.scrollTop = offset;
 
-        this.screenNode.invalidateRenderList( );
+            this.screenNode.invalidateRenderList( );
 
-        this.invalidateRects( );
-        this._prepareRedrawSelf( );
-
-        return this;
+        } );
 
     }
 
@@ -43,25 +95,48 @@ export class Block extends Element {
 
     }
 
-    getScrollHeight( ) {
+    scrollLineIntoView( line, anchor ) {
 
-        return this.childNodes.reduce( ( max, element ) => {
+        var scrollTop = this.scrollTop;
+        var height = this.contentBox.getY( ).height;
 
-            var rect = element.getFullRect( );
+        if ( line >= scrollTop && line < scrollTop + height )
+            return this;
 
-            return Math.max( max, rect.top + rect.height );
+        if ( typeof anchor === 'undefined' ) {
+            if ( line <= scrollTop ) {
+                anchor = 'top';
+            } else {
+                anchor = 'bottom';
+            }
+        }
 
-        }, 0 ) + ( this.activeStyle.border ? 2 : 0 );
+        switch ( anchor ) {
+
+            case 'top':
+                this.scrollTo( line );
+            break ;
+
+            case 'bottom':
+                this.scrollTo( line + 1 - height );
+            break ;
+
+            default:
+            throw new Error( 'Invalid scroll anchor' );
+
+        }
+
+        return this;
 
     }
 
-    _renderLine( x, y, l ) {
+    renderLine( x, y, l ) {
 
         var contentStart = x;
         var contentLength = l;
         var content;
 
-        var rect = this.getElementBox( );
+        var rect = this.elementBox.get( );
         var activeStyle = this.activeStyle;
 
         // Remove the left & right borders from the line content offsets
@@ -94,7 +169,7 @@ export class Block extends Element {
             content = new Array( contentLength + 1 ).join( activeStyle.ch || ' ' );
 
             if ( activeStyle.color ) {
-                var color = applyTerminalColor( activeStyle.border.fg, activeStyle.border.bg );
+                var color = applyTerminalColor( activeStyle.color.fg, activeStyle.color.bg );
                 var reset = resetTerminalStyles( );
                 content = color + content + reset;
             }

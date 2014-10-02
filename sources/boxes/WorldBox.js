@@ -2,39 +2,25 @@ import { Box } from '../boxes/Box';
 
 export class WorldBox extends Box {
 
-    refreshX( ) {
+    refreshSize( axis ) {
 
-        var innerRect = this._context.get( true, false );
-
-        this._rect.left = innerRect.left;
-        this._rect.right = innerRect.right;
-        this._rect.width = innerRect.width;
-
-        if ( this._element.parentNode ) {
-
-            var parentRect = this._element.parentNode._worldContentBox.get( true, false );
-
-            this._rect.left += parentRect.left;
-            this._rect.right += parentRect.right;
-
-        }
+        this._rect[ axis.size ] = this._context[ axis.getSize ]( );
 
     }
 
-    refreshY( ) {
+    refreshPosition( axis ) {
 
-        var innerRect = this._context.get( false, true );
+        var contextBoxRect = this._context[ axis.get ]( );
 
-        this._rect.top = innerRect.top;
-        this._rect.bottom = innerRect.bottom;
-        this._rect.height = innerRect.height;
+        this._rect[ axis.a ] = contextBoxRect[ axis.a ];
+        this._rect[ axis.b ] = contextBoxRect[ axis.b ];
 
         if ( this._element.parentNode ) {
 
-            var parentRect = this._element.parentNode._worldContentBox.get( false, true );
+            var parentWorldBoxRect = this._element.parentNode.worldContentBox[ axis.get ]( );
 
-            this._rect.top += parentRect.top;
-            this._rect.bottom += parentRect.bottom;
+            this._rect[ axis.a ] += parentWorldBoxRect[ axis.a ];
+            this._rect[ axis.b ] += parentWorldBoxRect[ axis.b ];
 
         }
 

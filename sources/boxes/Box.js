@@ -1,5 +1,10 @@
 import { Rect } from '../utilities/Rect';
 
+var axisSet = {
+    x : { get : 'getX', getSize : 'getWidth', a : 'left', b : 'right', size : 'width', minSize : 'minWidth', maxSize : 'maxWidth', scrollSize : 'scrollWidth', scrollPosition : 'scrollLeft', adaptiveFlag : 'hasAdaptativeWidth' },
+    y : { get : 'getY', getSize : 'getHeight', a : 'top', b : 'bottom', size : 'height', minSize : 'minHeight', maxSize : 'maxHeight', scrollSize : 'scrollHeight', scrollPosition : 'scrollTop', adaptiveFlag : 'hasAdaptativeHeight' }
+};
+
 export class Box {
 
     constructor( context ) {
@@ -46,17 +51,55 @@ export class Box {
 
     get( refreshX = true, refreshY = true ) {
 
-        if ( refreshX && this._dirtyX ) {
-            this.refreshX( );
+        if ( refreshX )
+            this.getX( );
+
+        if ( refreshY )
+            this.getY( );
+
+        return this._rect;
+
+    }
+
+    getX( ) {
+
+        if ( this._dirtyX ) {
+            this.refreshSize( axisSet.x );
+            this.refreshPosition( axisSet.x );
             this._dirtyX = false;
         }
 
-        if ( refreshY && this._dirtyY ) {
-            this.refreshY( );
+        return this._rect;
+
+    }
+
+    getY( ) {
+
+        if ( this._dirtyY ) {
+            this.refreshSize( axisSet.y );
+            this.refreshPosition( axisSet.y );
             this._dirtyY = false;
         }
 
         return this._rect;
+
+    }
+
+    getWidth( ) {
+
+        if ( this._dirtyX )
+            this.refreshSize( axisSet.x );
+
+        return this._rect.width;
+
+    }
+
+    getHeight( ) {
+
+        if ( this._dirtyY )
+            this.refreshSize( axisSet.y );
+
+        return this._rect.height;
 
     }
 

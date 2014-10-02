@@ -2,48 +2,32 @@ import { Box } from '../boxes/Box';
 
 export class ContentBox extends Box {
 
-    refreshX( ) {
+    refreshSize( axis ) {
 
-        var fullBoxRect = this._context.get( true, false );
-
-        this._rect.left = fullBoxRect.left;
-        this._rect.right = fullBoxRect.right;
-        this._rect.width = fullBoxRect.width;
+        this._rect[ axis.size ] = this._context[ axis.getSize ]( );
 
         if ( this._element.activeStyle.border ) {
 
-            this._rect.left += 1;
-            this._rect.right += 1;
+            this._rect[ axis.size ] -= 2;
 
-            this._rect.width -= 2;
-
-            if ( this._rect.width < 0 ) {
-                this._rect.width = 0;
+            if ( this._rect[ axis.size ] < 0 ) {
+                this._rect[ axis.size ] = 0;
             }
 
         }
 
     }
 
-    refreshY( ) {
+    refreshPosition( axis ) {
 
-        var fullBoxRect = this._context.get( false, true );
+        var contextBoxRect = this._context[ axis.get ]( );
 
-        this._rect.top = fullBoxRect.top;
-        this._rect.bottom = fullBoxRect.bottom;
-        this._rect.height = fullBoxRect.height;
+        this._rect[ axis.a ] = contextBoxRect[ axis.a ];
+        this._rect[ axis.b ] = contextBoxRect[ axis.b ];
 
         if ( this._element.activeStyle.border ) {
-
-            this._rect.top += 1;
-            this._rect.bottom += 1;
-
-            this._rect.height -= 2;
-
-            if ( this._rect.height < 0 ) {
-                this._rect.height = 0;
-            }
-
+            this._rect[ axis.a ] += 1;
+            this._rect[ axis.b ] += 1;
         }
 
     }

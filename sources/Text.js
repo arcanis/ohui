@@ -7,37 +7,47 @@ export class Text extends Element {
 
         super( style );
 
+        this._segmentSize = 0;
         this._originalContent = '';
         this._parsedContent = [ ];
-
-        Object.defineProperty( this, 'scrollHeight', {
-            get : ( ) => this._getParsedContent( ).length
-        } );
 
         Object.defineProperty( this, 'innerText', {
             set : this.setContent.bind( this )
         } );
 
-    }
-
-    invalidateRects( ... args ) {
-
-        super( ... args );
-
-        this._parsedContent = null;
-
-        return this;
+        Object.defineProperty( this, 'scrollHeight', {
+            get : ( ) => this._getParsedContent( ).length
+        } );
 
     }
 
     setContent( content ) {
 
-        this._originalContent = content;
-        this._parsedContent = null;
+        return this.applyElementBoxInvalidatingActions( true, true, ( ) => {
 
-        this._prepareRedrawSelf( );
+            this._originalContent = content;
+            this._parsedContent = null;
 
-        return this;
+        } );
+
+    }
+
+    renderLine( x, y, l ) {
+
+        var line = this._getParsedContent( )[ y ] || '';
+
+        if ( this.activeStyle.textAlign === 'center' ) {
+
+            var pad = Math.floor( ( this._segmentSize - line.length ) / 2 );
+            var prefix = new Array( pad + 1 ).join( this.activeStyle.ch || ' ' );
+
+            return prefix + line.substr( x, l - pad );
+
+        } else {
+
+            return line.substr( x, l );
+
+        }
 
     }
 
@@ -46,32 +56,23 @@ export class Text extends Element {
         if ( this._parsedContent )
             return this._parsedContent;
 
-        var parsedContent = [ ];
-        var lineRegexp = new RegExp( '.{1,' + this._contentBox.get( true, false ).width + '}', 'g' );
+        var parsedContent = this._parsedContent = [ ];
+        var segmentSize = this._segmentSize = this.contentBox.get( true, false ).width || Infinity;
 
-        this._originalContent.split( /(?:\r\n|\r|\n)/g ).forEach( line => {
-            var sublines = line.match( lineRegexp ) || [ '' ];
-            parsedContent = parsedContent.concat( sublines );
+        var lines = this._originalContent.replace( /\t/g, '    ' ).split( /(?:\r\n|\r|\n)/g );
+
+        lines.forEach( line => {
+
+            var segmentCount = Math.ceil( line.length / segmentSize );
+
+            for ( var t = 0; t < segmentCount; ++ t ) {
+                var segment = line.substr( t * segmentSize, segmentSize );
+                parsedContent.push( segment );
+            }
+
         } );
 
         return parsedContent;
-
-    }
-
-    _renderLine( x, y, l ) {
-
-        var line = ( this._getParsedContent( )[ y ] || '' ).substr( x, l );
-
-        for ( var t = line.length; t < l; ++ t )
-            line += this.activeStyle.ch || ' ';
-
-        if ( this.activeStyle.color ) {
-            var color = applyTerminalColor( this.activeStyle.color.fg, this.activeStyle.color.bg );
-            var reset = resetTerminalStyles( );
-            line = color + line + reset;
-        }
-
-        return line;
 
     }
 
