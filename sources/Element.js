@@ -96,7 +96,7 @@ export class Element {
     /**
      */
 
-    setStyle( name, value ) {
+    setStyleProperty( name, value ) {
 
         var namespaces = name.split( /\./g );
         var property = namespaces.shift( );
@@ -123,7 +123,7 @@ export class Element {
     /**
      */
 
-    setStyles( style ) {
+    setStyleProperties( style ) {
 
         extend( true, this.style, style );
 

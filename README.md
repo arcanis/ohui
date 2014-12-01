@@ -4,14 +4,15 @@ OhUI! is a graphical Node library, designed to make it easy to build pretty term
 
 # Features
 
-- DOM-like API (appendChild, removeChild, ...)
-- Supports common UI behaviors (such as focus)
-- Very easily extandable
-- Performant and fast
+  - DOM-like API (appendChild, removeChild, ...)
+  - Supports common UI behaviors (such as focus)
+  - Very easily extendable
+  - Performant and fast
+  - Wrote using ES6
 
 # Example
 
-*Comming soon*
+*I still have to browserify it to work with [term.js](https://github.com/chjj/term.js/)*
 
 # Reference
 
@@ -21,36 +22,101 @@ OhUI! is a graphical Node library, designed to make it easy to build pretty term
 
     ### Methods
 
+      - *setStyleProperty( property, value )*
+
+        Set a unique style property.
+
+      - *setStyleProperties( properties )*
+
+        Set a batch of style properties.
+
+        Using setStyleProperties is more efficient than calling setStyleProperty multiple times.
+
       - *appendChild( element )*
+
+        Add a new child to the element.
+
       - *removeChild( element )*
+
+        Remove a child from an element.
+
       - *scrollIntoView( element, anchor = "top" | "bottom" )*
-      - *dispatchEvent( event )*
+
+        Scroll the element to show the specified element, anchored either at top or bottom.
+
+        If the element is already on the screen, nothing happens.
+
       - *declareEvent( eventName )*
+
+        Declare an event. Should not be called except by custom elements.
+
+      - *dispatchEvent( event )*
+
+        Trigger an event. Triggering an undeclared event won't work.
+
       - *addEventListener( eventName, callback )*
+
+        Add an event listener.
+
       - *addShortcutListener( sequence, callback )*
+
+        Remove an event listener.
+
       - *focus( )*
+
+        Give the element the focus. If the element already has the focus, nothing happens.
+
       - *blur( )*
+
+        Remove the focus from the element. If the element doesn't have the focus, nothing happens.
 
     ### Properties
 
       - *scrollLeft*
+
+        The element's horizontal scroll offset. Read only.
+
       - *scrollTop*
+
+        The element's vertical scroll offset. Read only.
+
       - *scrollWidth*
+
+        The element's displayed width. Read only.
+
       - *scrollHeight*
+
+        The element's displayed height. Read only.
 
     ### Events
 
       - *focus*
+
+        Triggered when the element gets the focus.
+
       - *blur*
+
+        Triggered when the element loses the focus.
+
       - *data*
+
+        Triggered when the element gets data (escape codes are filtered out).
+
       - *keypress*
+
+        Triggered when the element gets a keypress.
+
       - *click*
+
+        Triggered when the element is clicked on.
 
   - **new Screen( { stdin, stdout } )**
 
     ### Events
 
       - *resize*
+
+        Triggered when the screen resizes.
 
   - **new Block( style )**
 
@@ -60,11 +126,15 @@ OhUI! is a graphical Node library, designed to make it easy to build pretty term
 
       - *innerText*
 
+        The element's content. Read/write.
+
   - **new Input( style )**
 
     ### Properties
 
       - *value*
+
+        The element's value. Read/write.
 
 ## Styles
 
@@ -158,6 +228,20 @@ Note that some keys cannot be accessed in some cases. For example, the F11 key s
 new OhUI.Screen( ).addShortcutListener( 'C-d', function ( ) {
     // ... do something on ctrl-d
 } );
+```
+
+## Colors
+
+In order to use colors, you have to use the TermString class, which is a kind of special-purpose string object (escape codes doesn't increase the string length).
+
+```js
+var string = new TermString();
+string.push( 'Hello' );
+string.push( [ 'bold' ] );
+string.push( 'World' );
+
+var element = new Block();
+element.innerText = string;
 ```
 
 # License
