@@ -60,7 +60,11 @@ OhUI! is a graphical Node library, designed to make it easy to build pretty term
 
       - *addShortcutListener( sequence, callback )*
 
-        Remove an event listener.
+        Add a *shortcut* listener. You can use the following format:
+
+        `M-x, C-t, C-x C-f`, which means "Alt X, or Control T, or Control X followed with Control F".
+
+        Please note that some keys cannot be correctly mapped due to terminal limitations (F11 and F12 are notorious at this regard).
 
       - *focus( )*
 
