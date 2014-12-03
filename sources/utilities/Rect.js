@@ -94,13 +94,13 @@ export class Rect {
             tmp.height = intersection.height;
         }
 
-        if ( intersection.right > this.right ) {
+        if ( intersection.left + intersection.width < this.left + this.width ) {
             results.push( tmp = new Rect( ) );
             tmp.left = intersection.left + intersection.width;
             tmp.right = this.right;
             tmp.top = intersection.top;
             tmp.bottom = intersection.bottom;
-            tmp.width = intersection.right - this.right;
+            tmp.width = this.left + this.width - intersection.left - intersection.width;
             tmp.height = intersection.height;
         }
 
@@ -114,14 +114,14 @@ export class Rect {
             tmp.height = intersection.top - this.top;
         }
 
-        if ( intersection.bottom > this.bottom ) {
+        if ( intersection.top + intersection.height < this.top + this.height ) {
             results.push( tmp = new Rect( ) );
             tmp.left = this.left;
             tmp.right = this.right;
             tmp.top = intersection.top + intersection.height;
             tmp.bottom = this.bottom;
             tmp.width = this.width;
-            tmp.height = intersection.bottom - this.bottom;
+            tmp.height = this.top + this.height - intersection.top - intersection.height;
         }
 
         return results;
