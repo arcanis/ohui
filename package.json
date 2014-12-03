@@ -2,7 +2,7 @@
 
     "name" : "ohui",
     "description" : "Node.js terminal-based graphical library",
-    "version" : "0.0.3",
+    "version" : "0.0.5",
 
     "main" : "./main",
 
@@ -16,13 +16,13 @@
         "keypress" : "^0.2.1",
         "stable" : "^0.1.5",
         "regexp-quote" : "^0.0.0",
-        "node-tput" : "^0.0.3"
+        "node-tput" : "^0.0.3",
+        "traceur" : "^0.0.79"
     },
 
     "devDependencies" : {
         "mocha" : "^1.21.4",
         "chai" : "^1.9.1",
-        "traceur" : "^0.0.58",
         "systemjs" : "^0.8.2"
     }
 
