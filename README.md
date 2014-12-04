@@ -1,6 +1,8 @@
 ![OhUI!](http://i.imgur.com/lsuXlRu.png)
 
-OhUI! is a graphical Node library, designed to make it easy to build pretty terminal interfaces.
+![](http://i.imgur.com/6X57wMj.gif)
+
+> OhUI! is a graphical Node library, designed to make it easy to build pretty terminal interfaces.
 
 # Features
 
@@ -13,6 +15,21 @@ OhUI! is a graphical Node library, designed to make it easy to build pretty term
 # Example
 
 *I still have to browserify it to work with [term.js](https://github.com/chjj/term.js/)*
+
+# Usage
+
+```
+$> npm install ohui
+```
+
+```js
+var OhUI = require( 'ohui' );
+
+var screen = new OhUI.Screen( );
+
+var box = new OhUI.Box( { width : '100%', height : '100%', borders : OhUI.borders.strong } );
+screen.appendChild( box );
+```
 
 # Reference
 
