@@ -1,10 +1,10 @@
 export class Rect {
 
-    constructor( other ) {
+    constructor(other) {
 
-        if ( other instanceof Rect ) {
+        if (other instanceof Rect) {
 
-            this.copySelf( other );
+            this.copySelf(other);
 
         } else {
 
@@ -17,7 +17,7 @@ export class Rect {
 
     }
 
-    copySelf( other ) {
+    copySelf(other) {
 
         this.left = other.left;
         this.right = other.right;
@@ -30,7 +30,7 @@ export class Rect {
 
     }
 
-    contractSelf( top, right, bottom, left ) {
+    contractSelf(top, right, bottom, left) {
 
         this.top += top;
         this.bottom += bottom;
@@ -41,12 +41,12 @@ export class Rect {
         this.width -= left + right;
         this.height -= top + bottom;
 
-        this.width = Math.max( 0, this.width );
-        this.height = Math.max( 0, this.height );
+        this.width = Math.max(0, this.width);
+        this.height = Math.max(0, this.height);
 
     }
 
-    setOriginSelf( top, right, bottom, left ) {
+    setOriginSelf(top, right, bottom, left) {
 
         this.top += top;
         this.bottom += bottom;
@@ -56,13 +56,13 @@ export class Rect {
 
     }
 
-    isValid( ) {
+    isValid() {
 
-        return ! isNaN( this.width ) && ! isNaN( this.height );
+        return !isNaN(this.width) && !isNaN(this.height);
 
     }
 
-    contains( other ) {
+    contains(other) {
 
         return other.left >= this.left
             && other.top >= this.top
@@ -71,21 +71,21 @@ export class Rect {
 
     }
 
-    exclude( other ) {
+    exclude(other) {
 
-        if ( ! this.width || ! this.height )
-            return [ ];
+        if (!this.width || !this.height)
+            return [];
 
-        var intersection = this.intersection( other );
+        let intersection = this.intersection(other);
 
-        if ( ! intersection )
-            return [ new Rect( this ) ];
+        if (!intersection)
+            return [ new Rect(this) ];
 
-        var workingRect = new Rect( this );
-        var results = [ ], tmp;
+        let workingRect = new Rect(this);
+        let results = [], tmp;
 
-        if ( intersection.left > this.left ) {
-            results.push( tmp = new Rect( ) );
+        if (intersection.left > this.left) {
+            results.push(tmp = new Rect());
             tmp.left = this.left;
             tmp.right = intersection.right + intersection.width;
             tmp.top = intersection.top;
@@ -94,8 +94,8 @@ export class Rect {
             tmp.height = intersection.height;
         }
 
-        if ( intersection.left + intersection.width < this.left + this.width ) {
-            results.push( tmp = new Rect( ) );
+        if (intersection.left + intersection.width < this.left + this.width) {
+            results.push(tmp = new Rect());
             tmp.left = intersection.left + intersection.width;
             tmp.right = this.right;
             tmp.top = intersection.top;
@@ -104,8 +104,8 @@ export class Rect {
             tmp.height = intersection.height;
         }
 
-        if ( intersection.top > this.top ) {
-            results.push( tmp = new Rect( ) );
+        if (intersection.top > this.top) {
+            results.push(tmp = new Rect());
             tmp.left = this.left;
             tmp.right = this.right;
             tmp.top = this.top;
@@ -114,8 +114,8 @@ export class Rect {
             tmp.height = intersection.top - this.top;
         }
 
-        if ( intersection.top + intersection.height < this.top + this.height ) {
-            results.push( tmp = new Rect( ) );
+        if (intersection.top + intersection.height < this.top + this.height) {
+            results.push(tmp = new Rect());
             tmp.left = this.left;
             tmp.right = this.right;
             tmp.top = intersection.top + intersection.height;
@@ -128,9 +128,9 @@ export class Rect {
 
     }
 
-    intersection( other ) {
+    intersection(other) {
 
-        var doesIntersect =
+        let doesIntersect =
 
             other.left < this.left + this.width &&
             other.left + other.width > this.left &&
@@ -141,23 +141,28 @@ export class Rect {
             this.width > 0 && this.height > 0 &&
             other.width > 0 && other.height > 0;
 
-        if ( ! doesIntersect )
+        if (!doesIntersect)
             return false;
 
-        var rect = new Rect( );
+        let rect = new Rect();
 
-        rect.left = Math.max( this.left, other.left );
-        rect.top = Math.max( this.top, other.top );
+        rect.left = Math.max(this.left, other.left);
+        rect.top = Math.max(this.top, other.top);
 
-        rect.width = Math.min( this.left + this.width, other.left + other.width ) - rect.left;
-        rect.height = Math.min( this.top + this.height, other.top + other.height ) - rect.top;
+        rect.width = Math.min(this.left + this.width, other.left + other.width) - rect.left;
+        rect.height = Math.min(this.top + this.height, other.top + other.height) - rect.top;
 
-        rect.right = Math.min( this.right + this.width, other.right + other.width ) - rect.width;
-        rect.bottom = Math.min( this.bottom + this.height, other.bottom + other.height ) - rect.height;
+        rect.right = Math.min(this.right + this.width, other.right + other.width) - rect.width;
+        rect.bottom = Math.min(this.bottom + this.height, other.bottom + other.height) - rect.height;
 
         return rect;
 
     }
 
+    toString() {
+
+        return `l: ${this.left} r: ${this.right} | t: ${this.top} b: ${this.bottom} | w: ${this.width} h: ${this.height}`;
+
+    }
 
 }

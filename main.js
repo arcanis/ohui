@@ -12,3 +12,5 @@ exports.Input = require( './compiled/Input' ).Input;
 
 exports.TermString = require( './compiled/utilities/TermString' ).TermString;
 exports.ansiColors = require( './compiled/constants' ).ansiColors;
+
+exports.debug = require( './compiled/debug' ).debug;

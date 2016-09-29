@@ -1,29 +1,26 @@
 {
-
-    "name" : "ohui",
-    "description" : "Node.js terminal-based graphical library",
-    "version" : "0.0.6",
-
-    "main" : "./main",
-
-    "scripts" : {
-        "test" : "npm run-script prepublish && $(npm bin)/mocha tests/*.js",
-        "prepublish" : "$(npm bin)/traceur --dir sources compiled --modules=commonjs"
-    },
-
-    "dependencies" : {
-        "extend" : "^1.3.0",
-        "keypress" : "^0.2.1",
-        "stable" : "^0.1.5",
-        "regexp-quote" : "^0.0.0",
-        "node-tput" : "^0.0.3",
-        "traceur" : "^0.0.79"
-    },
-
-    "devDependencies" : {
-        "mocha" : "^1.21.4",
-        "chai" : "^1.9.1",
-        "systemjs" : "^0.8.2"
-    }
-
+  "name": "ohui",
+  "version": "0.0.6",
+  "license": "MIT",
+  "scripts": {
+    "test": "pm run-script prepublish && $(npm bin)/mocha tests/*.js",
+    "build": "babel -d build/ sources/",
+    "prepublish": "npm run build"
+  },
+  "dependencies": {
+    "extend": "^1.3.0",
+    "keypress": "^0.2.1",
+    "lodash": "^4.16.2",
+    "node-tput": "^0.0.5",
+    "regexp-quote": "^0.0.0"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.16.0",
+    "babel-core": "^6.16.0",
+    "babel-preset-es2015": "^6.16.0",
+    "babel-preset-es2016": "^6.16.0",
+    "babel-preset-es2017": "^6.16.0",
+    "chai": "^1.9.1",
+    "mocha": "^1.21.4"
+  }
 }
