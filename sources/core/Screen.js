@@ -4,11 +4,11 @@ import tput                   from 'node-tput';
 import stable                 from 'stable';
 
 import { TerminalBox }        from './boxes/TerminalBox';
-import { Rect }               from './utilities/Rect';
 import { applyTerminalColor } from './utilities/colors';
 
 import { Element }            from './Element';
 import { Event     }          from './Event';
+import { Rect }               from './Rect';
 import { ansiColors }         from './constants';
 
 let debugColors = [ ansiColors.RED, ansiColors.GREEN, ansiColors.BLUE, ansiColors.MAGENTA ], currentDebugColorIndex = 0;
@@ -16,7 +16,7 @@ let invalidUtf8Symbols = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/;
 
 export class Screen extends Element {
 
-    constructor({ stdin = process.stdin, stdout = process.stdout } = {}) {
+    constructor({ stdin = process.stdin, stdout = process.stdout, resetOnExit = true } = {}) {
 
         super({ left: 0, right: 0, top: 0, bottom: 0 });
 
@@ -43,6 +43,17 @@ export class Screen extends Element {
         this._out.write(tput('civis'));
         this._out.write(tput('clear'));
 
+        if (resetOnExit) {
+
+            process.on('exit', () => {
+
+                keypress.disableMouse(this._out);
+                this._out.write(tput('rs2'));
+
+            });
+
+        }
+
         this._out.on('resize', () => {
 
             this.applyElementBoxInvalidatingActions(true, true, () => {
@@ -63,14 +74,6 @@ export class Screen extends Element {
                 return ;
 
             this._mouseEvent(e);
-
-        });
-
-        process.on('exit', () => {
-
-            keypress.disableMouse(this._out);
-
-            this._out.write(tput('rs2'));
 
         });
 
@@ -167,12 +170,12 @@ export class Screen extends Element {
 
         let layeringVisitor = element => {
 
-            if (! element.activeStyle.flags.isVisible)
+            if (!element.activeStyle.flags.isVisible)
                 return ;
 
             let clipRect = element.clipElementBox.get();
 
-            if (! clipRect.width || ! clipRect.height)
+            if (!clipRect.width || !clipRect.height)
                 return ;
 
             let zIndex = element.activeStyle.zIndex;
@@ -215,12 +218,12 @@ export class Screen extends Element {
 
     prepareRedrawRect(redrawRect) {
 
-        if (! redrawRect.width || ! redrawRect.height)
+        if (!redrawRect.width || !redrawRect.height)
             return this;
 
         this._queueRedraw([ redrawRect ]);
 
-        if (! this._nextRedraw) {
+        if (isNull(this._nextRedraw)) {
             this._nextRedraw = setImmediate(() => {
                 this._nextRedraw = null;
                 this._redraw();
@@ -233,13 +236,13 @@ export class Screen extends Element {
 
     _keyEvent(data, key) {
 
-        if (! data || invalidUtf8Symbols.test(data))
+        if (!data || invalidUtf8Symbols.test(data))
             data = null;
 
-        if (data && ! key && data.length === 1)
+        if (data && !key && data.length === 1)
             key = { ctrl: false, shift: false, meta: false, name: data };
 
-       if (! data && ! key)
+       if (!data && !key)
             return ;
 
         let keyDef = key ? { control: key.ctrl, shift: key.shift, meta: key.meta, key: key.name } : null;
@@ -282,7 +285,7 @@ export class Screen extends Element {
 
                     let element = event.target;
 
-                    while (element && ! element.scrollBy)
+                    while (element && !element.scrollBy)
                         element = element.parentNode;
 
                     if (element) {
@@ -304,7 +307,7 @@ export class Screen extends Element {
 
                     let element = event.target;
 
-                    while (element && ! element.activeStyle.focusable)
+                    while (element && !element.activeStyle.focusable)
                         element = element.parentNode;
 
                     if (element) {
@@ -331,6 +334,13 @@ export class Screen extends Element {
 
     _redraw() {
 
+        if (!isNull(this._nextRedraw)) {
+
+            clearImmediate(this._nextRedraw);
+            this._nextRedraw = null;
+
+        }
+
         let buffer = '';
 
         let renderList = this.getRenderList();
@@ -349,12 +359,12 @@ export class Screen extends Element {
                 let fullRect = element.worldElementBox.get();
                 let clipRect = element.clipElementBox.get();
 
-                if (! clipRect.width || ! clipRect.height)
+                if (!clipRect.width || !clipRect.height)
                     continue ;
 
                 let intersection = clipRect.intersection(dirtyRect);
 
-                if (! intersection)
+                if (!intersection)
                     continue ;
 
                 let truncation = dirtyRect.exclude(intersection);

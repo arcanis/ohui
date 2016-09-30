@@ -1,4 +1,5 @@
-import   extend             from 'extend';
+import extend               from 'extend';
+import { isNull }           from 'lodash';
 
 import { ClipBox }          from './boxes/ClipBox';
 import { ContentBox }       from './boxes/ContentBox';
@@ -6,9 +7,9 @@ import { ElementBox }       from './boxes/ElementBox';
 import { ScrollBox }        from './boxes/ScrollBox';
 import { WorldBox }         from './boxes/WorldBox';
 import { KeySequence }      from './utilities/KeySequence';
-import { Rect }             from './utilities/Rect';
 
 import { Event }            from './Event';
+import { Rect }             from './Rect';
 import { percentageRegexF } from './constants';
 
 let elementUniqueId = 0;
@@ -20,6 +21,7 @@ export class Element {
 
     constructor(style = {}) {
 
+        this.name = null;
         this.id = ++elementUniqueId;
 
         this.style = extend(true, { position: `static`, width: `auto`, height: `auto` }, style);
@@ -88,6 +90,18 @@ export class Element {
             }, 0)
 
         });
+
+    }
+
+    /**
+     */
+
+    toString() {
+
+        let name = !isNull(this.name) ? this.name : `???`;
+        let id = this.id;
+
+        return `<${name}#${id}>`;
 
     }
 
@@ -405,7 +419,7 @@ export class Element {
         // (If the element shrinks, then having prepared a redraw allow us to easily remove the extraneous space)
 
         if (this.screenNode)
-            this.screenNode.prepareRedraw(topMostInvalidation.clipElementBox.get());
+            this.screenNode.prepareRedrawRect(topMostInvalidation.clipElementBox.get());
 
         // Fourth step, we now execute every action that could invalidate the box of our elements
 
@@ -442,7 +456,7 @@ export class Element {
 
         if (this.screenNode) {
             this.screenNode.invalidateRenderList();
-            this.screenNode.prepareRedraw(topMostInvalidation.clipElementBox.get());
+            this.screenNode.prepareRedrawRect(topMostInvalidation.clipElementBox.get());
         }
 
         return this;

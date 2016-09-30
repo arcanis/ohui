@@ -1,4 +1,32 @@
+import { isNil } from 'lodash';
+
 export class Rect {
+
+    static fromJS({ top, bottom, left, right, width, height } = {}) {
+
+        let rect = new this();
+
+        if (!isNil(left))
+            rect.left = left;
+
+        if (!isNil(right))
+            rect.right = right;
+
+        if (!isNil(top))
+            rect.top = top;
+
+        if (!isNil(bottom))
+            rect.bottom = bottom;
+
+        if (!isNil(width))
+            rect.width = width;
+
+        if (!isNil(height))
+            rect.height = height;
+
+        return rect;
+
+    }
 
     constructor(other) {
 
@@ -161,7 +189,7 @@ export class Rect {
 
     toString() {
 
-        return `l: ${this.left} r: ${this.right} | t: ${this.top} b: ${this.bottom} | w: ${this.width} h: ${this.height}`;
+        return `<Rect#l: ${this.left} r: ${this.right} | t: ${this.top} b: ${this.bottom} | w: ${this.width} h: ${this.height}>`;
 
     }
 
