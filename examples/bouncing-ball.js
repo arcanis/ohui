@@ -6,7 +6,7 @@ let screen = new Screen();
 let main = new Block({ position: `absolute`, left: 0, top: 0, right: 0, bottom: 0, border: borders.strong() });
 screen.appendChild(main);
 
-let ball = new Block({ position: `absolute`, left: 0, top: 0, width: 6, height: 4, border: borders.simple(), ch: `#` });
+let ball = new Block({ position: `absolute`, left: 0, top: 0, width: 6, height: 4, border: borders.simple(), backgroundCharacter: `#` });
 main.appendChild(ball);
 
 (function run(dx, dy) {

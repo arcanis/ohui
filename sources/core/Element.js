@@ -24,7 +24,7 @@ export class Element {
         this.name = null;
         this.id = ++elementUniqueId;
 
-        this.style = extend(true, { position: `static`, width: `auto`, height: `auto` }, style);
+        this.style = extend(true, { position: `static`, width: `auto`, height: `auto`, backgroundCharacter: ` ` }, style);
         this.activeStyle = { flags: {} };
 
         this.screenNode = null;
@@ -40,6 +40,8 @@ export class Element {
 
         this.scrollWidth = 0;
         this.scrollHeight = 0;
+
+        this.caret = null;
 
         this.elementBox = new ElementBox(this);
         this.contentBox = new ContentBox(this.elementBox);
@@ -375,10 +377,10 @@ export class Element {
         this.addEventListener(`data`, e => {
 
             if (!e.key)
-                return ;
+                return;
 
             if (!sequence.match(e.key))
-                return ;
+                return;
 
             callback.call(this, e);
 
@@ -423,7 +425,7 @@ export class Element {
 
         // Fourth step, we now execute every action that could invalidate the box of our elements
 
-        invalidatingActionsCallback();
+        let ret = invalidatingActionsCallback();
 
         // Fifth step, each invalidated element also has to invalidate its children using relative sizes - recursively
         // Wanna know why we`re doing it here rather than in fourth step? It`s because the "invalidating actions" may have be to add (or remove) a child!
@@ -459,28 +461,49 @@ export class Element {
             this.screenNode.prepareRedrawRect(topMostInvalidation.clipElementBox.get());
         }
 
-        return this;
+        return ret;
 
     }
 
     /**
      */
 
-    prepareRedraw() {
+    prepareRedraw(contentRect = this.contentBox.get()) {
 
         if (!this.screenNode)
-            return ;
+            return;
 
-        this.screenNode.prepareRedrawRect(this.clipElementBox.get());
+        if (!isNull(contentRect)) {
+
+            this.contentBox.setStub(contentRect);
+            let clipRect = this.clipContentBox.get();
+            this.contentBox.setStub(null);
+
+            this.screenNode.prepareRedrawRect(clipRect);
+
+        } else {
+
+            this.screenNode.prepareRedrawRect(null);
+
+        }
 
     }
 
     /**
      */
 
-    renderLine(x, y, l) {
+    renderElement(x, y, l) {
 
-        return new Array(l + 1).join(this.activeStyle.ch || ` `);
+        throw new Error(`renderElement is not implemented`);
+
+    }
+
+    /**
+     */
+
+    renderContent(x, y, l) {
+
+        throw new Error(`renderContent is not implemented`);
 
     }
 

@@ -1,17 +1,15 @@
-import keypress               from 'keypress';
-import { isNull }             from 'lodash';
-import tput                   from 'node-tput';
-import stable                 from 'stable';
+import { clear, moveTo, reset, style } from '@manaflair/term-strings';
+import keypress                        from 'keypress';
+import { isNull }                      from 'lodash';
+import stable                          from 'stable';
 
-import { TerminalBox }        from './boxes/TerminalBox';
-import { applyTerminalColor } from './utilities/colors';
+import { TerminalBox }                 from './boxes/TerminalBox';
 
-import { Element }            from './Element';
-import { Event     }          from './Event';
-import { Rect }               from './Rect';
-import { ansiColors }         from './constants';
+import { Element }                     from './Element';
+import { Event     }                   from './Event';
+import { Rect }                        from './Rect';
 
-let debugColors = [ ansiColors.RED, ansiColors.GREEN, ansiColors.BLUE, ansiColors.MAGENTA ], currentDebugColorIndex = 0;
+let debugColors = [ `red`, `green`, `blue`, `magenta` ], currentDebugColorIndex = 0;
 let invalidUtf8Symbols = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/;
 
 export class Screen extends Element {
@@ -40,15 +38,15 @@ export class Screen extends Element {
         keypress(this._in);
         keypress.enableMouse(this._out);
 
-        this._out.write(tput('civis'));
-        this._out.write(tput('clear'));
+        this._out.write(reset);
+        this._out.write(style.cursor.hidden);
 
         if (resetOnExit) {
 
             process.on('exit', () => {
 
                 keypress.disableMouse(this._out);
-                this._out.write(tput('rs2'));
+                this._out.write(reset);
 
             });
 
@@ -57,7 +55,7 @@ export class Screen extends Element {
         this._out.on('resize', () => {
 
             this.applyElementBoxInvalidatingActions(true, true, () => {
-                this._out.write(tput('clear'));
+                this._out.write(clear);
             });
 
         });
@@ -218,16 +216,22 @@ export class Screen extends Element {
 
     prepareRedrawRect(redrawRect) {
 
-        if (!redrawRect.width || !redrawRect.height)
-            return this;
+        if (!isNull(redrawRect)) {
 
-        this._queueRedraw([ redrawRect ]);
+            if (!redrawRect.width || !redrawRect.height)
+                return this;
+
+            this._queueRedraw([ redrawRect ]);
+
+        }
 
         if (isNull(this._nextRedraw)) {
+
             this._nextRedraw = setImmediate(() => {
                 this._nextRedraw = null;
                 this._redraw();
             });
+
         }
 
         return this;
@@ -326,6 +330,12 @@ export class Screen extends Element {
 
     }
 
+    renderElement(x, y, l) {
+
+        return ` `.repeat(l);
+
+    }
+
     /**
      * Render every requested rects. Each rect will be matched against every element of the scene, front-to-back.
      *
@@ -334,19 +344,20 @@ export class Screen extends Element {
 
     _redraw() {
 
+        // We clear the next pending redraw if needed; useful when testing, so we can forcefully redraw the screen
         if (!isNull(this._nextRedraw)) {
-
             clearImmediate(this._nextRedraw);
             this._nextRedraw = null;
-
         }
 
-        let buffer = '';
+        // We start by disabling the cursor (otherwise we would see it moving when redrawing)
+        let buffer = style.cursor.hidden;
 
-        let renderList = this.getRenderList();
-
+        // Choose a different color for each redraw
         let debugColor = debugColors[currentDebugColorIndex];
         currentDebugColorIndex = (currentDebugColorIndex + 1) % debugColors.length;
+
+        let renderList = this.getRenderList();
 
         while (this._pending.length > 0) {
 
@@ -375,22 +386,12 @@ export class Screen extends Element {
                     let relativeX = intersection.left - fullRect.left;
                     let relativeY = intersection.top - fullRect.top + y;
 
-                    let line = element.renderLine(relativeX, relativeY, intersection.width);
-
-                    if (line.length < intersection.width)
-                        line += new Array(intersection.width - line.length + 1).join(element.activeStyle.ch || ' ');
-
-                    line = line.toString();
+                    let line = String(element.renderElement(relativeX, relativeY, intersection.width));
 
                     if (process.env.OHUI_DEBUG_RENDER)
-                        line = applyTerminalColor(ansiColors.WHITE, debugColor) + line;
-                    else if (element.activeStyle.color)
-                        line = applyTerminalColor(element.activeStyle.color.fg, element.activeStyle.color.bg) + line;
+                        line = style.back(debugColor) + line + style.clear;
 
-                    if (line.indexOf('\x1b') !== -1)
-                        line = line + tput('sgr0');
-
-                    buffer += tput('cup', intersection.top + y, intersection.left);
+                    buffer += moveTo({ x: intersection.left, y: intersection.top + y });
                     buffer += line;
 
                 }
@@ -398,6 +399,18 @@ export class Screen extends Element {
                 break ;
 
             }
+
+        }
+
+        if (!isNull(this.activeElement) && !isNull(this.activeElement.caret)) {
+
+            let activeElement = this.activeElement;
+
+            let worldContentRect = activeElement.worldContentBox.get();
+            let caret = activeElement.caret;
+
+            buffer += moveTo({ x: worldContentRect.left + caret.x, y: worldContentRect.top + caret.y });
+            buffer += style.cursor.normal;
 
         }
 

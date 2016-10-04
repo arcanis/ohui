@@ -1,5 +1,4 @@
 import { isArray, isNil, isRegExp, isUndefined } from 'lodash';
-import tput                                      from 'node-tput';
 
 export class TermString {
 
@@ -17,20 +16,10 @@ export class TermString {
 
     push(string, raw = false) {
 
-        if (isNil(null))
+        if (isNil(string))
             return this;
 
-        if (isArray(string)) {
-
-            string = tput.apply(null, string);
-            raw = true;
-
-        }
-
         if (string instanceof TermString) {
-
-            if (string.length === 0)
-                return this;
 
             this.length += string.length;
 
@@ -92,17 +81,7 @@ export class TermString {
         if (isNil(string))
             return this;
 
-        if (isArray(string)) {
-
-            string = tput.apply(null, string);
-            raw = true;
-
-        }
-
         if (string instanceof TermString) {
-
-            if (string.length === 0)
-                return this;
 
             this._content.length += string.length;
 
@@ -155,7 +134,9 @@ export class TermString {
             index += 2;
         }
 
-        for (let prefix = '', escapeCodeIndex = index - 1; escapeCodeIndex >= 0; escapeCodeIndex -= 2)
+        let prefix = ``;
+
+        for (let escapeCodeIndex = index - 1; escapeCodeIndex >= 0; escapeCodeIndex -= 2)
             prefix = this._content[escapeCodeIndex] + prefix;
 
         let result = new TermString();
@@ -241,6 +222,17 @@ export class TermString {
             }
 
         }
+
+        return other;
+
+    }
+
+    padEnd(expectedLength, character = ` `) {
+
+        let other = new TermString(this);
+
+        if (other.length < expectedLength)
+            other.push(character.repeat(expectedLength - other.length));
 
         return other;
 

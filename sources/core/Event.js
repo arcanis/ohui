@@ -34,7 +34,7 @@ export class Event {
             if (!isFunction(action))
                 throw new Error(`Invalid default`);
 
-            defaultAction = defaultAction || action;
+            defaultAction = action;
 
         };
 

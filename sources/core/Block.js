@@ -1,6 +1,7 @@
-import { applyTerminalColor, resetTerminalStyles } from './utilities/colors';
+import { style }      from '@manaflair/term-strings';
 
-import { Element }                                 from './Element';
+import { Element }    from './Element';
+import { TermString } from './TermString';
 
 export class Block extends Element {
 
@@ -131,104 +132,164 @@ export class Block extends Element {
 
     }
 
-    renderLine(x, y, l) {
+    renderElement(x, y, l) {
 
-        let contentStart = x;
-        let contentLength = l;
-        let content;
-
-        let rect = this.elementBox.get();
+        let elementRect = this.elementBox.get();
         let activeStyle = this.activeStyle;
 
-        // Remove the left & right borders from the line content offsets
+        let processBorders = (x, y, l) => {
 
-        if (activeStyle.border) {
+            if (!activeStyle.border)
+                return processContent(x, y, l);
 
-            contentStart -= 1;
+            let prepend = ``;
+            let append = ``;
 
-            if (x === 0)
-                contentLength -= 1;
+            if (y === 0) {
 
-            if (x + l === rect.width)
-                contentLength -= 1;
+                let contentL = l;
 
-            contentStart = Math.max(0, contentStart);
-            contentLength = Math.max(0, contentLength);
+                if (x === 0) {
+                    prepend = activeStyle.border.topLeft;
+                    contentL -= 1;
+                }
 
-        }
+                if (x + l === elementRect.width) {
+                    append = activeStyle.border.topRight;
+                    contentL -= 1;
+                }
 
-        // Get the line content for the correct type of line among the three possible cases:
-        // - A top/bottom line of a bordered box
-        // - A middle line of a bordered box, or any line of a non-bordered box
+                let data = prepend + activeStyle.border.horizontal.repeat(contentL) + append;
 
-        if (activeStyle.border && (y === 0 || y === rect.height - 1)) {
+                if (activeStyle.backgroundColor)
+                    data = style.back(activeStyle.backgroundColor) + data;
 
-            content = new Array(contentLength + 1).join(activeStyle.border.horizontal);
+                if (activeStyle.borderColor)
+                    data = style.front(activeStyle.borderColor) + data;
 
-        } else {
+                if (activeStyle.backgroundColor || activeStyle.borderColor)
+                    data += style.clear;
 
-            content = new Array(contentLength + 1).join(activeStyle.ch || ` `);
+                return data;
 
-            if (activeStyle.color) {
-                let color = applyTerminalColor(activeStyle.color.fg, activeStyle.color.bg);
-                let reset = resetTerminalStyles();
-                content = color + content + reset;
-            }
+            } else if (y === elementRect.height - 1) {
 
-        }
+                let contentL = l;
 
-        // If we're in a bordered box, we add the right prefix and suffix according to the top/middle/bottom line
-        // Note that we add them only if required; ie. that for example we don't draw the prefix if we print a box from 1 cell inside
+                if (x === 0) {
+                    prepend = activeStyle.border.bottomLeft;
+                    contentL -= 1;
+                }
 
-        if (activeStyle.border) {
+                if (x + l === elementRect.width) {
+                    append = activeStyle.border.bottomRight;
+                    contentL -= 1;
+                }
 
-            let prefix = ``, suffix = ``;
+                let data = prepend + activeStyle.border.horizontal.repeat(contentL) + append;
 
-            // Should we print the prefix?
-            if (x === 0) {
-                if (y === 0) {
-                    prefix = activeStyle.border.topLeft;
-                } else if (y === rect.height - 1) {
-                    prefix = activeStyle.border.bottomLeft;
+                if (activeStyle.backgroundColor)
+                    data = style.back(activeStyle.backgroundColor) + data;
+
+                if (activeStyle.borderColor)
+                    data = style.front(activeStyle.borderColor) + data;
+
+                if (activeStyle.backgroundColor || activeStyle.borderColor)
+                    data += style.clear;
+
+                return data;
+
+            } else {
+
+                let contentX = x;
+                let contentY = y - 1;
+                let contentL = l;
+
+                if (x === 0) {
+                    prepend = activeStyle.border.vertical;
+                    contentL -= 1;
                 } else {
-                    prefix = activeStyle.border.vertical;
-                }
-            }
-
-            // Should we print the suffix?
-            if (x + l === rect.width) {
-                if (y === 0) {
-                    suffix = activeStyle.border.topRight;
-                } else if (y === rect.height - 1) {
-                    suffix = activeStyle.border.bottomRight;
-                } else {
-                    suffix = activeStyle.border.vertical;
-                }
-            }
-
-            // Should the border prefix/suffix be colored?
-            if (activeStyle.border.fg || activeStyle.border.bg) {
-
-                let color = applyTerminalColor(activeStyle.border.fg, activeStyle.border.bg);
-
-                prefix = color + prefix;
-
-                // Don't forget to reset the color after the prefix for middle lines
-                // And to add it back when drawing the suffix
-                if (y !== 0 && y !== rect.height - 1) {
-                    content = resetTerminalStyles() + content;
-                    suffix = color + suffix;
+                    contentX -= 1;
                 }
 
-                suffix = suffix + resetTerminalStyles();
+                if (x + l === elementRect.width) {
+                    append = activeStyle.border.vertical;
+                    contentL -= 1;
+                }
+
+                if (activeStyle.backgroundColor) {
+
+                    if (prepend)
+                        prepend = style.back(activeStyle.backgroundColor) + prepend;
+
+                    if (append) {
+                        append = style.back(activeStyle.backgroundColor) + append;
+                    }
+
+                }
+
+                if (activeStyle.borderColor) {
+
+                    if (prepend)
+                        prepend = style.front(activeStyle.borderColor) + prepend;
+
+                    if (append) {
+                        append = style.front(activeStyle.borderColor) + append;
+                    }
+
+                }
+
+                if (activeStyle.backgroundColor || activeStyle.borderColor) {
+
+                    if (prepend)
+                        prepend += style.clear;
+
+                    if (append) {
+                        append += style.clear;
+                    }
+
+                }
+
+                return prepend + processContent(contentX, contentY, contentL) + append;
 
             }
 
-            content = prefix + content + suffix;
+        };
 
-        }
+        let processContent = (x, y, l) => {
 
-        return content;
+            let content = this.renderContent(x, y, l);
+
+            if (content.length < l) {
+
+                if (activeStyle.backgroundColor || activeStyle.borderColor)
+                    content = new TermString(content);
+
+                if (activeStyle.backgroundColor)
+                    content = content.push(style.back(activeStyle.backgroundColor), true);
+
+                if (activeStyle.color)
+                    content = content.push(style.front(activeStyle.color), true);
+
+                content = content.padEnd(l, activeStyle.backgroundCharacter);
+
+                if (activeStyle.backgroundColor || activeStyle.borderColor) {
+                    content = content.push(style.clear);
+                }
+
+            }
+
+            return content;
+
+        };
+
+        return processBorders(x, y, l);
+
+    }
+
+    renderContent(x, y, l) {
+
+        return ``;
 
     }
 

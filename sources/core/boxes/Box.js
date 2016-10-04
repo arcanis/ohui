@@ -1,4 +1,6 @@
-import { Rect } from '../Rect';
+import { isNull } from 'lodash';
+
+import { Rect }   from '../Rect';
 
 var axisSet = {
     x: { get: 'getX', getSize: 'getWidth', a: 'left', b: 'right', size: 'width', minSize: 'minWidth', maxSize: 'maxWidth', scrollSize: 'scrollWidth', scrollPosition: 'scrollLeft', adaptiveFlag: 'hasAdaptativeWidth' },
@@ -13,9 +15,11 @@ export class Box {
         this._dirtyY = true;
 
         this._context = context;
-        this._rect = new Rect();
 
-        this._invalidateList = [ ];
+        this._rect = new Rect();
+        this._stub = null;
+
+        this._invalidateList = [];
 
         if (this._context instanceof Box) {
 
@@ -27,6 +31,16 @@ export class Box {
             this._element = this._context;
 
         }
+
+    }
+
+    setStub(stub) {
+
+        if (!isNull(stub) && !(stub instanceof Rect))
+            throw new Error(`Invalid stub`);
+
+        this._stub = stub;
+        this.invalidate();
 
     }
 
@@ -51,6 +65,9 @@ export class Box {
 
     get(refreshX = true, refreshY = true) {
 
+        if (!isNull(this._stub))
+            return this._stub;
+
         if (refreshX)
             this.getX();
 
@@ -62,6 +79,9 @@ export class Box {
     }
 
     getX() {
+
+        if (!isNull(this._stub))
+            return this._stub;
 
         if (this._dirtyX) {
             this.refreshSize(axisSet.x);
@@ -75,6 +95,9 @@ export class Box {
 
     getY() {
 
+        if (!isNull(this._stub))
+            return this._stub;
+
         if (this._dirtyY) {
             this.refreshSize(axisSet.y);
             this.refreshPosition(axisSet.y);
@@ -87,6 +110,9 @@ export class Box {
 
     getWidth() {
 
+        if (!isNull(this._stub))
+            return this._stub;
+
         if (this._dirtyX)
             this.refreshSize(axisSet.x);
 
@@ -95,6 +121,9 @@ export class Box {
     }
 
     getHeight() {
+
+        if (!isNull(this._stub))
+            return this._stub;
 
         if (this._dirtyY)
             this.refreshSize(axisSet.y);
@@ -105,7 +134,7 @@ export class Box {
 
     toRect() {
 
-        return new Rect(this._rect);
+        return new Rect(this.get());
 
     }
 
