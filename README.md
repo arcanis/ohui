@@ -4,7 +4,7 @@
 
 > OhUI! is a graphical Node library, designed to make it easy to build pretty terminal interfaces.
 
-# Features
+## Features
 
   - DOM-like API (appendChild, removeChild, ...)
   - Supports common UI behaviors (such as focus)
@@ -12,32 +12,36 @@
   - Performant and fast
   - Wrote using ES6
 
-# Example
+## Example
 
-*I still have to browserify it to work with [term.js](https://github.com/chjj/term.js/)*
+The following examples have all been ported on browsers using [xterm.js](https://github.com/sourcelair/xterm.js), but can run on your terminal as well.
 
-# Usage
+  - [Bouncing Ball](https://arcanis.github.io/ohui-web/examples/bouncing-ball.html)
+
+## Installation
 
 ```
-$> npm install ohui
+$> npm install --save ohui
 ```
+
+## Usage
 
 ```js
-var OhUI = require( 'ohui' );
+import { Screen, Box } from 'ohui';
 
-var screen = new OhUI.Screen( );
+let screen = new Screen();
 
-var box = new OhUI.Box( { width : '100%', height : '100%', borders : OhUI.borders.strong } );
-screen.appendChild( box );
+let box = new Box({ width: `100%`, height: `100%`, borders: OhUI.borders.strong });
+screen.appendChild(box);
 ```
 
-# Reference
+## Reference
 
-## Elements
+### Elements
 
   - **new Element( style )**
 
-    ### Methods
+    #### Methods
 
       - *setStyleProperty( property, value )*
 
@@ -91,7 +95,7 @@ screen.appendChild( box );
 
         Remove the focus from the element. If the element doesn't have the focus, nothing happens.
 
-    ### Properties
+    #### Properties
 
       - *scrollLeft*
 
@@ -109,7 +113,7 @@ screen.appendChild( box );
 
         The element's displayed height. Read only.
 
-    ### Events
+    #### Events
 
       - *focus*
 
@@ -133,7 +137,7 @@ screen.appendChild( box );
 
   - **new Screen( { stdin, stdout } )**
 
-    ### Events
+    #### Events
 
       - *resize*
 
@@ -143,7 +147,7 @@ screen.appendChild( box );
 
   - **new Text( style )**
 
-    ### Properties
+    #### Properties
 
       - *innerText*
 
@@ -151,20 +155,20 @@ screen.appendChild( box );
 
   - **new Input( style )**
 
-    ### Properties
+    #### Properties
 
       - *value*
 
         The element's value. Read/write.
 
-## Styles
+### Styles
 
   - **focusable**
 
       - Undefined/Null: The element won't be focusable
       - Boolean: If true, the element will be focusable
 
-  - **ch**
+  - **backgroundCharacter**
 
       - Undefined/Null: The background character will be a space.
       - String: The background character will be the specified string. Only use strings whose length is exactly 1.
@@ -220,10 +224,17 @@ screen.appendChild( box );
   - **color**
 
       - Undefined/Null: The element won't have any color.
-      - Object: The element content will be colored. The object can have those fields:
+      - String: The element content will be colored with [Term-String](https://github.com/manaflair/term-strings).
 
-          - fg
-          - bg
+  - **borderColor**
+
+      - Undefined/Null: The element won't have any color.
+      - String: The element borders will be colored with [Term-String](https://github.com/manaflair/term-strings).
+
+  - **backgroundColor**
+
+      - Undefined/Null: The element won't have any color.
+      - String: The element background will be colored with [Term-String](https://github.com/manaflair/term-strings).
 
   - **zIndex**
 
@@ -237,7 +248,7 @@ screen.appendChild( box );
       - Undefined/Null: Nothing special happens.
       - Object: This object can contain any other style property. They will be applied as long as the element will be focused.
 
-## Shortcuts
+### Shortcuts
 
 OhUI! allows you to set up key sequence listeners. They can be set locally, bound to focusable elements, or globally, bound to the Screen instance.
 
@@ -246,33 +257,33 @@ The sequences also work with key modifiers: you can prefix each key by some or m
 Note that some keys cannot be accessed in some cases. For example, the F11 key sequence is actually the Shift+F10 sequence (so you cannot distinguish those two keys). The issue does not come from OhUI!, but rather from the underlying terminal key encodings.
 
 ```js
-new OhUI.Screen( ).addShortcutListener( 'C-d', function ( ) {
+new OhUI.Screen().addShortcutListener(`C-d`, () => {
     // ... do something on ctrl-d
-} );
+});
 ```
 
-## Colors
+### Colors
 
-In order to use colors, you have to use the TermString class, which is a kind of special-purpose string object (escape codes doesn't increase the string length).
+In order to use colors, you have to use the TermString class, which is a kind of special-purpose string object where escape codes don't increase the string length. It is recommended to use it alongside the [Term-Strings](https://github.com/manaflair/term-strings) library to avoid hardcoding terminal sequences into your code.
 
 ```js
-var string = new TermString();
-string.push( 'Hello' );
-string.push( [ 'bold' ] );
-string.push( 'World' );
+import { style } from '@manaflair/term-strings';
 
-var element = new Block();
+let string = new TermString();
+string.push('Hello');
+string.push(style.bold);
+string.push('World');
+
+let element = new Block();
 element.innerText = string;
 ```
 
-# License
+## License (MIT)
 
-> ## The MIT License (MIT)
->
-> ### Copyright © 2014 Maël Nison
+> **Copyright © 2014 Maël Nison**
 >
 > Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 >
 > The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 >
-> *THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
